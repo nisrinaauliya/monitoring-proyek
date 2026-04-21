@@ -11,12 +11,7 @@
     </div>
 
     <div class="card-body">
-
-        @if($errors->has('uat'))
-            <div class="alert alert-danger">{{ $errors->first('uat') }}</div>
-        @endif
-
-        <form action="{{ route('ppsmbbyuser.store') }}" method="POST" enctype="multipart/form-data">
+        <form id="formPpsmb" action="{{ route('ppsmbbyuser.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             {{-- Personal Info --}}
@@ -140,11 +135,53 @@
 
             <div class="d-flex justify-content-end gap-2 mt-4">
                 <a href="{{ route('ppsmbbyuser') }}" class="btn btn-outline-secondary">Cancel</a>
-                <button type="submit" class="btn text-white" style="background-color: #af2027;">Submit</button>
+                <button type="button" onclick="cekSebelumSubmit()" class="btn text-white" style="background-color: #af2027;">Submit</button>
             </div>
 
         </form>
     </div>
 </div>
+
+<!-- Modal Blokir — taruh di luar card/form -->
+<div class="modal fade" id="modalBlokir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                        style="width: 36px; height: 36px; background-color: #f8d7da;">
+                        <i class="bi bi-exclamation-triangle" style="color: #af2027; font-size: 16px;"></i>
+                    </div>
+                    <h6 class="modal-title fw-semibold mb-0" style="color: #af2027;">Pengajuan Ditolak</h6>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3 pb-2">
+                <p class="text-muted mb-0" style="font-size: 14px;">
+                    Departemen Anda memiliki <strong>3 atau lebih proyek dengan status UAT</strong> dan salah satunya sudah melebihi <strong>10 hari</strong>. Selesaikan terlebih dahulu sebelum mengajukan PPSMB baru.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-sm text-white" 
+                        style="background-color: #af2027; border-color: #af2027;" 
+                        data-bs-dismiss="modal">Mengerti</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function cekSebelumSubmit() {
+        fetch('{{ route('ppsmbbyuser.checkuat') }}')
+            .then(res => res.json())
+            .then(data => {
+                if (data.blocked) {
+                    new bootstrap.Modal(document.getElementById('modalBlokir')).show();
+                } else {
+                    document.getElementById('formPpsmb').submit();
+                }
+            });
+    }
+</script>
 
 @endsection

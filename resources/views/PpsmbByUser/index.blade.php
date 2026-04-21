@@ -12,13 +12,6 @@
     </div>
 @endif
 
-@if($errors->has('uat'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        {{ $errors->first('uat') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@endif
-
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
         <h6 class="mb-0 fw-semibold">Monitoring Pengajuan PPSMB</h6>
@@ -49,7 +42,7 @@
                         <th>Model Aplikasi</th>
                         <th>Tahun</th>
                         <th>Quartal</th>
-                        <th>Status Pengajuan</th>
+                        <th>Status</th>
                         <th>Estimasi Mulai</th>
                         <th>Estimasi Selesai</th>
                         <th>Progress</th>
@@ -69,15 +62,16 @@
                         <td>
                             @php
                                 $badge = match($ppsmb->status) {
-                                    'Verifikasi CMD/Dinov'  => 'warning',
-                                    'Revisi User'           => 'danger',
-                                    'Antrian Analisa BA IT' => 'info',
-                                    'Analisa BA IT'         => 'primary',
-                                    'Antrian Development'   => 'secondary',
-                                    'Proses Development'    => 'primary',
-                                    'UAT'                   => 'warning',
-                                    'Done'                  => 'success',
-                                    default                 => 'secondary',
+                                    'Verifikasi CMD/Dinov'                  => 'secondary',
+                                    'Revisi User'                           => 'warning',
+                                    'Edit By User - Verifikasi CMD/Dinov'   => 'warning',
+                                    'Antrian Analisa BA IT'                 => 'primary',
+                                    'Analisa BA IT'                         => 'primary',
+                                    'Antrian Development'                   => 'primary',
+                                    'Proses Development'                    => 'primary',
+                                    'UAT'                                   => 'warning',
+                                    'Done (Live)'                           => 'success',
+                                    default                                 => 'danger',
                                 };
                             @endphp
                             <span class="badge bg-{{ $badge }}">{{ $ppsmb->status }}</span>
@@ -86,12 +80,14 @@
                         <td>{{ $ppsmb->estimasi_selesai ?? '-' }}</td>
                         <td>{{ $ppsmb->progress }}%</td>
                         <td>
-                            <a href="{{ route('ppsmbbyuser.show', $ppsmb->id) }}" 
-                               class="btn btn-sm btn-info text-white">Rincian</a>
-                            @if($ppsmb->status === 'Revisi User' && $ppsmb->user_id === Auth::id())
-                                <a href="{{ route('ppsmbbyuser.edit', $ppsmb->id) }}" 
-                                   class="btn btn-sm btn-warning text-white">Edit</a>
-                            @endif
+                            <div class="d-flex flex-column gap-1">
+                                @if($ppsmb->status === 'Revisi User' && $ppsmb->user_id === Auth::id())
+                                    <a href="{{ route('ppsmbbyuser.edit', $ppsmb->id) }}" 
+                                    class="btn btn-sm btn-warning text-white" style="width: 70px;">Edit</a>
+                                @endif
+                                <a href="{{ route('ppsmbbyuser.show', $ppsmb->id) }}" 
+                                class="btn btn-sm btn-info text-white" style="width: 70px;">Rincian</a>
+                            </div>
                         </td>
                     </tr>
                     @empty
@@ -101,6 +97,12 @@
                     @endforelse
                 </tbody>
             </table>
+
+           <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-muted">Showing {{ $ppsmbs->firstItem() }} to {{ $ppsmbs->lastItem() }} of {{ $ppsmbs->total() }} results</small>
+                {{ $ppsmbs->links() }}
+            </div>
+            
         </div>
     </div>
 </div>

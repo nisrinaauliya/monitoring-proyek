@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Rincian PPSMB')
+@section('title', 'Rincian PPSMB - Sistem Helpdesk')
 @section('page_title', 'Rincian PPSMB')
 
 @section('content')

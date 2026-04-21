@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Edit PPSMB')
+@section('title', 'Edit PPSMB - Sistem Helpdesk')
 @section('page_title', 'Edit PPSMB')
 
 @section('content')
@@ -41,35 +41,43 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Model Aplikasi</label>
-                    <input type="text" class="form-control" value="{{ $ppsmb->model_aplikasi }}">
+                    <input type="hidden" name="model_aplikasi" value="{{ $ppsmb->model_aplikasi }}">
+                    <input type="text" class="form-control" value="{{ $ppsmb->model_aplikasi }}" disabled>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Nama Project <span class="text-danger">*</span></label>
-                    <input type="text" name="nama_project" class="form-control @error('nama_project') is-invalid @enderror" value="{{ old('nama_project', $ppsmb->nama_project) }}" disabled>
-                    @error('nama_project')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <label class="form-label">Nama Project</label>
+                    <input type="hidden" name="nama_project" value="{{ $ppsmb->nama_project }}">
+                    <input type="text" class="form-control" value="{{ $ppsmb->nama_project }}" disabled>
                 </div>
             </div>
 
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Tahun</label>
-                    <input type="text" class="form-control" value="{{ $ppsmb->tahun }}">
+                    <input type="hidden" name="tahun" value="{{ $ppsmb->tahun }}">
+                    <input type="text" class="form-control" value="{{ $ppsmb->tahun }}" disabled>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Quartal</label>
-                    <input type="text" class="form-control" value="{{ $ppsmb->quartal }}">
+                    <input type="hidden" name="quartal" value="{{ $ppsmb->quartal }}">
+                    <input type="text" class="form-control" value="{{ $ppsmb->quartal }}" disabled>
                 </div>
             </div>
 
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Jenis Permintaan</label>
-                    <input type="text" class="form-control" value="{{ $ppsmb->jenis_permintaan }}">
+                    <input type="hidden" name="jenis_permintaan[]" value="{{ $ppsmb->jenis_permintaan }}">
+                    <input type="text" class="form-control" value="{{ $ppsmb->jenis_permintaan }}" disabled>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Upload File SRS Baru</label>
                     <input type="file" name="file" class="form-control @error('file') is-invalid @enderror" accept=".pdf,.doc,.docx">
-                    <small class="text-muted">File saat ini: {{ basename($ppsmb->file) }}. Kosongkan jika tidak ingin mengganti file.</small>
+                    <small class="text-muted">
+                        File saat ini:
+                        <a href="{{ asset('storage/' . $ppsmb->file) }}" target="_blank">{{ basename($ppsmb->file) }}</a>. 
+                        Kosongkan jika tidak ingin mengganti file.
+                    </small>
                     @error('file')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
             </div>
@@ -92,10 +100,9 @@
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4">
-                <a href="{{ route('ppsmbbyuser') }}" class="btn btn-outline-secondary">Batal</a>
+                <a href="{{ route('ppsmbbyuser') }}" class="btn btn-outline-secondary">Cancel</a>
                 <button type="submit" class="btn text-white" style="background-color: #af2027;">Submit Revisi</button>
             </div>
-
         </form>
     </div>
 </div>

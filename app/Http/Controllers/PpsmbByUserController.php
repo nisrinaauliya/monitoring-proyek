@@ -6,12 +6,13 @@ use App\Models\Ppsmb;
 use App\Models\PpsmbHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class PpsmbByUserController extends Controller
 {
     public function index()
     {
-        $ppsmbs = Ppsmb::with('user')->latest()->get();
+        $ppsmbs = Ppsmb::with('user')->latest()->paginate(10);
         return view('ppsmbbyuser.index', compact('ppsmbs'));
     }
 
@@ -32,32 +33,16 @@ class PpsmbByUserController extends Controller
             'file'              => 'required|file|mimes:pdf,doc,docx|mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document|max:10240',
         ]);
 
-        // cek blokir UAT
-        $uatCount = Ppsmb::where('dept', Auth::user()->dept)
-            ->where('status', 'UAT')
-            ->count();
-
-        $uatAging = Ppsmb::where('dept', Auth::user()->dept)
-            ->where('status', 'UAT')
-            ->where('updated_at', '<=', now()->subDays(10))
-            ->exists();
-
-        if ($uatCount >= 3 && $uatAging) {
-            return back()->withErrors([
-                'uat' => 'Pengajuan ditolak. Departemen kamu memiliki 3 atau lebih proyek UAT dan salah satunya sudah melebihi 10 hari. Selesaikan terlebih dahulu.'
-            ])->withInput();
-        }
-
         // upload file
         $file = $request->file('file');
         $fileName = $file->getClientOriginalName();
         $filePath = $file->storeAs('ppsmb_files', $fileName, 'public');
 
-        // tentukan project leader berdasarkan model aplikasi
+        // project leader berdasarkan model aplikasi
         $projectLeader = match($request->model_aplikasi) {
-            'Aplikasi Internal MD'                                      => 'Febryanita Teni Kusumalia',
-            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => 'Johannes',
-            'Improvement IT System'                                     => 'Febryanita Teni Kusumalia',
+            'Aplikasi Internal MD'                                      => 'Rastansyah',
+            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => 'Jefry',
+            'Improvement IT System'                                     => 'Rastansyah',
             default                                                     => null,
         };
 
@@ -92,6 +77,22 @@ class PpsmbByUserController extends Controller
         return redirect()->route('ppsmbbyuser')->with('success', 'PPSMB berhasil diajukan.');
     }
 
+    public function checkUat()
+    {
+        $uatCount = Ppsmb::where('dept', Auth::user()->dept)
+            ->where('status', 'UAT')
+            ->count();
+
+        $uatAging = Ppsmb::where('dept', Auth::user()->dept)
+            ->where('status', 'UAT')
+            ->where('updated_at', '<=', now()->subDays(10))
+            ->exists();
+
+        return response()->json([
+            'blocked' => $uatCount >= 3 && $uatAging
+        ]);
+    }
+
     public function show($id)
     {
         $ppsmb = Ppsmb::with(['histories', 'detailPengerjaan'])->findOrFail($id);
@@ -113,45 +114,31 @@ class PpsmbByUserController extends Controller
                        ->findOrFail($id);
 
         $request->validate([
-            'nama_project'      => 'required',
-            'model_aplikasi'    => 'required',
-            'tahun'             => 'required',
-            'quartal'           => 'required',
-            'jenis_permintaan'  => 'required',
             'uraian_permintaan' => 'required',
             'file'              => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ]);
 
         $filePath = $ppsmb->file;
         if ($request->hasFile('file')) {
+            //hapus file lama
+            Storage::disk('public')->delete($ppsmb->file);
+
+            //upload file baru
             $file = $request->file('file');
             $fileName = $file->getClientOriginalName();
             $filePath = $file->storeAs('ppsmb_files', $fileName, 'public');
         }
 
-        $projectLeader = match($request->model_aplikasi) {
-        'Aplikasi Internal MD'                                   => 'Febryanita Teni Kusumalia',
-        'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'  => 'Johannes',
-        'Improvement IT System'                                  => 'Febryanita Teni Kusumalia',
-        default                                                  => null,
-        };
-
         $status = match($request->model_aplikasi) {
-            'Improvement IT System' => 'Analisa BA IT',
-            default                 => 'Verifikasi CMD/Dinov',
+            'Improvement IT System' => 'Antrian Analisa BA IT',
+            default                 => 'Edit By User - Verifikasi CMD/Dinov',
         };
 
         $ppsmb->update([
-            'model_aplikasi'    => $request->model_aplikasi,
-            'nama_project'      => $request->nama_project,
-            'tahun'             => $request->tahun,
-            'quartal'           => $request->quartal,
-            'jenis_permintaan'  => implode(', ', $request->jenis_permintaan ?? []),
             'uraian_permintaan' => $request->uraian_permintaan,
             'tangible_benefit'  => $request->tangible_benefit,
             'intangible_benefit'=> $request->intangible_benefit,
             'file'              => $filePath,
-            'project_leader'    => $projectLeader,
             'status'            => $status,
             'revisi_at'         => null,
         ]);
@@ -160,7 +147,7 @@ class PpsmbByUserController extends Controller
             'ppsmb_id'  => $ppsmb->id,
             'pemeriksa' => Auth::user()->name,
             'status'    => $status,
-            'catatan'   => 'PPSMB diajukan kembali',
+            'catatan'   => null,
         ]);
 
         return redirect()->route('ppsmbbyuser')->with('success', 'PPSMB berhasil direvisi dan diajukan kembali.');

@@ -13,7 +13,7 @@ class PpsmbByCmdController extends Controller
     {
         $ppsmbs = Ppsmb::with('user')
             ->where('model_aplikasi', 'Aplikasi Internal MD')
-            ->where('status', '!=', 'Revisi User')
+            ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit By User - Verifikasi CMD/Dinov'])
             ->latest()
             ->get();
 
@@ -38,7 +38,7 @@ class PpsmbByCmdController extends Controller
             'ppsmb_id'  => $ppsmb->id,
             'pemeriksa' => Auth::user()->name,
             'status'    => 'Antrian Analisa BA IT',
-            'catatan'   => $request->catatan ?? 'Disetujui oleh CMD',
+            'catatan'   => null,
         ]);
 
         return redirect()->route('ppsmbbycmd')->with('success', 'PPSMB berhasil disetujui.');

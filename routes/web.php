@@ -25,15 +25,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    // Route::get('/ticket', [TicketController::class, 'index'])
-    //     ->name('ticket');
-
     Route::get('/ppsmbbyuser', [PpsmbByUserController::class, 'index'])
         ->name('ppsmbbyuser');
     Route::get('/ppsmbbyuser/create', [PpsmbByUserController::class, 'create'])
         ->name('ppsmbbyuser.create');
     Route::post('/ppsmbbyuser', [PpsmbByUserController::class, 'store'])
         ->name('ppsmbbyuser.store');
+    Route::get('/ppsmbbyuser/checkkuat', [PpsmbByUserController::class, 'checkUat'])
+        ->name('ppsmbbyuser.checkuat');    
     Route::get('/ppsmbbyuser/{id}', [PpsmbByUserController::class, 'show'])
         ->name('ppsmbbyuser.show');
     Route::get('/ppsmbbyuser/{id}/edit', [PpsmbByUserController::class, 'edit'])
@@ -77,8 +76,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['auth', 'checkdept:CMD, DINOV, IT'])->group(function () {
         Route::get('/report', [ReportController::class, 'index'])
             ->name('report');
-        // Route::get('/inputpriority', [InputPriorityController::class, 'index'])
-        //     ->name('inputpriority');
+
         Route::get('/result', [ResultController::class, 'index'])
             ->name('result');
     });
