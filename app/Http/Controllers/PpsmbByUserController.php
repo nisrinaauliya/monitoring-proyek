@@ -95,7 +95,7 @@ class PpsmbByUserController extends Controller
 
     public function show($id)
     {
-        $ppsmb = Ppsmb::with(['histories', 'detailPengerjaan'])->findOrFail($id);
+        $ppsmb = Ppsmb::with(['user', 'histories', 'detailPengerjaan'])->findOrFail($id);
         return view('ppsmbbyuser.show', compact('ppsmb'));
     }
 

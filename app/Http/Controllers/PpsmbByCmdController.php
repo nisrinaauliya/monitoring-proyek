@@ -15,7 +15,7 @@ class PpsmbByCmdController extends Controller
             ->where('model_aplikasi', 'Aplikasi Internal MD')
             ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit By User - Verifikasi CMD/Dinov'])
             ->latest()
-            ->get();
+            ->paginate(10);
 
         return view('ppsmbbycmd.index', compact('ppsmbs'));
     }
@@ -66,4 +66,4 @@ class PpsmbByCmdController extends Controller
 
         return redirect()->route('ppsmbbycmd')->with('success', 'PPSMB dikembalikan ke user untuk direvisi.');
     }
-}
+} 

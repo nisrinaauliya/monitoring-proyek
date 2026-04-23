@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Rincian PPSMB')
+@section('title', 'Rincian PPSMB - Sistem Helpdesk')
 @section('page_title', 'Rincian PPSMB')
 
 @section('content')
@@ -121,6 +121,38 @@
             </div>
         </div>
 
+        {{-- Detail Pengerjaan --}}
+        <h6 class="fw-semibold mb-3 border-bottom pb-2">
+            <i class="bi bi-list-check me-1"></i>Detail Pengerjaan
+        </h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Menu</th>
+                        <th>Penilaian</th>
+                        <th>Mandays</th>
+                        <th>Adjustment Mandays</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($ppsmb->detailPengerjaan as $detail)
+                    <tr>
+                        <td>{{ $detail->menu }}</td>
+                        <td>{{ $detail->penilaian ?? '-' }}</td>
+                        <td>{{ $detail->mandays ?? '-' }}</td>
+                        <td>{{ $detail->adjustment_mandays ?? '-' }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">Belum ada detail pengerjaan</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- History --}}
         <h6 class="fw-semibold mb-3 border-bottom pb-2">
             <i class="bi bi-clock-history me-1"></i>History
         </h6>
@@ -151,15 +183,15 @@
             </table>
         </div>
 
-        @if($ppsmb->status === 'Verifikasi CMD/Dinov')
+        @if($ppsmb->status === 'Verifikasi CMD/Dinov' || $ppsmb->status === 'Edit By User - Verifikasi CMD/Dinov')
         <h6 class="fw-semibold mb-3 border-bottom pb-2">
-            <i class="bi bi-check-circle me-1"></i>Aksi Verifikasi
+            <i class="bi bi-check-circle me-1"></i>Verifikasi
         </h6>
         <div class="row">
             <div class="col-md-6">
                 <div class="card border-success">
                     <div class="card-body">
-                        <h6 class="text-success fw-semibold">Setujui PPSMB</h6>
+                        <h6 class="fw-semibold">Approve PPSMB</h6>
                         <form action="{{ route('ppsmbbydinov.approve', $ppsmb->id) }}" method="POST">
                             @csrf
                             <div class="mb-3">
@@ -167,16 +199,17 @@
                                 <textarea name="catatan" class="form-control" rows="2" placeholder="Catatan persetujuan..."></textarea>
                             </div>
                             <button type="submit" class="btn btn-success w-100">
-                                <i class="bi bi-check-circle me-1"></i>Approve
+                                Approve
                             </button>
                         </form>
                     </div>
                 </div>
             </div>
+
             <div class="col-md-6">
                 <div class="card border-danger">
                     <div class="card-body">
-                        <h6 class="text-danger fw-semibold">Kembalikan untuk Revisi</h6>
+                        <h6 class="fw-semibold">Kembalikan untuk Revisi</h6>
                         <form action="{{ route('ppsmbbydinov.revisi', $ppsmb->id) }}" method="POST">
                             @csrf
                             <div class="mb-3">
@@ -185,7 +218,7 @@
                                 @error('catatan')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <button type="submit" class="btn btn-danger w-100">
-                                <i class="bi bi-arrow-return-left me-1"></i>Kembalikan ke User
+                                Kembalikan ke User
                             </button>
                         </form>
                     </div>

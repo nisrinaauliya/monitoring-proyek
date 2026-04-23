@@ -12,10 +12,10 @@ class PpsmbByDinovController extends Controller
     public function index()
     {
         $ppsmbs = Ppsmb::with('user')
-            ->whereIn('model_aplikasi', ['Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'])
-            ->where('status', '!=', 'Revisi User')
+            ->where('model_aplikasi', 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot')
+            ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit By User - Verifikasi CMD/Dinov'])
             ->latest()
-            ->get();
+            ->paginate(10);
 
         return view('ppsmbbydinov.index', compact('ppsmbs'));
     }
@@ -38,7 +38,7 @@ class PpsmbByDinovController extends Controller
             'ppsmb_id'  => $ppsmb->id,
             'pemeriksa' => Auth::user()->name,
             'status'    => 'Antrian Analisa BA IT',
-            'catatan'   => $request->catatan ?? 'Disetujui oleh DINOV',
+            'catatan'   => null,
         ]);
 
         return redirect()->route('ppsmbbydinov')->with('success', 'PPSMB berhasil disetujui.');
