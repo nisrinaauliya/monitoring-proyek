@@ -19,6 +19,7 @@ class Ppsmb extends Model
         'project_leader',
         'pic_ba',
         'secondary_ba',
+        'developer',
         'tangible_benefit',
         'intangible_benefit',
         'file',

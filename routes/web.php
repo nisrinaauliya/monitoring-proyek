@@ -67,10 +67,20 @@ Route::middleware('auth')->group(function () {
             ->name('ppsmbbyit');
         Route::get('/ppsmbbyit/{id}', [PpsmbByItController::class, 'show'])
             ->name('ppsmbbyit.show');
-        Route::post('/ppsmbbyit/{id}/generate', [PpsmbByItController::class, 'generateNoPpsmb']
-            )->name('ppsmbbyit.generate');
-        Route::post('/ppsmbbyit/{id}/status', [PpsmbByItController::class, 'updateStatus'])
-            ->name('ppsmbbyit.status');
+        Route::post('/ppsmbbyit/{id}/generate', [PpsmbByItController::class, 'generateNoPpsmb'])
+            ->name('ppsmbbyit.generate');
+        Route::post('/ppsmbbyit/{id}/detail', [PpsmbByItController::class, 'simpanDetail'])
+            ->name('ppsmbbyit.detail');
+        Route::post('/ppsmbbyit/{id}/developer', [PpsmbByItController::class, 'assignDeveloper'])
+            ->name('ppsmbbyit.developer');
+        Route::post('/ppsmbbyit/{id}/estimasi', [PpsmbByItController::class, 'updateEstimasi'])
+            ->name('ppsmbbyit.estimasi');
+        Route::post('/ppsmbbyit/{id}/progress', [PpsmbByItController::class, 'updateProgress'])
+            ->name('ppsmbbyit.progress');
+        Route::post('/ppsmbbyit/{id}/lanjutuat', [PpsmbByItController::class, 'lanjutUat'])
+            ->name('ppsmbbyit.lanjutuat');
+        Route::post('/ppsmbbyit/{id}/uat', [PpsmbByItController::class, 'updateUat'])
+            ->name('ppsmbbyit.uat');
     });
 
     Route::middleware(['auth', 'checkdept:CMD, DINOV, IT'])->group(function () {

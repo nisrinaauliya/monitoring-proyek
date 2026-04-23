@@ -33,7 +33,7 @@
                         <th>Model Aplikasi</th>
                         <th>Tahun</th>
                         <th>Quartal</th>
-                        <th>Status Pengajuan</th>
+                        <th>Status</th>
                         <th>Estimasi Mulai</th>
                         <th>Estimasi Selesai</th>
                         <th>Progress</th>
@@ -53,13 +53,16 @@
                         <td>
                             @php
                                 $badge = match($ppsmb->status) {
-                                    'Antrian Analisa BA IT' => 'info',
-                                    'Analisa BA IT'         => 'primary',
-                                    'Antrian Development'   => 'secondary',
-                                    'Proses Development'    => 'primary',
-                                    'UAT'                   => 'warning',
-                                    'Done'                  => 'success',
-                                    default                 => 'secondary',
+                                    'Verifikasi CMD/Dinov'                  => 'secondary',
+                                    'Revisi User'                           => 'warning',
+                                    'Edit By User - Verifikasi CMD/Dinov'   => 'warning',
+                                    'Antrian Analisa BA IT'                 => 'primary',
+                                    'Analisa BA IT'                         => 'primary',
+                                    'Antrian Development'                   => 'primary',
+                                    'Proses Development'                    => 'primary',
+                                    'UAT'                                   => 'warning',
+                                    'Done (Live)'                           => 'success',
+                                    default                                 => 'danger',
                                 };
                             @endphp
                             <span class="badge bg-{{ $badge }}">{{ $ppsmb->status }}</span>
@@ -69,7 +72,7 @@
                         <td>{{ $ppsmb->progress }}%</td>
                         <td>
                             <a href="{{ route('ppsmbbyit.show', $ppsmb->id) }}"
-                               class="btn btn-sm btn-info text-white">Rincian</a>
+                               class="btn btn-sm btn-info text-white" style="width:70px;">Rincian</a>
                         </td>
                     </tr>
                     @empty
@@ -79,6 +82,12 @@
                     @endforelse
                 </tbody>
             </table>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-muted">Showing {{ $ppsmbs->firstItem() }} to {{ $ppsmbs->lastItem() }} of {{ $ppsmbs->total() }} results</small>
+                {{ $ppsmbs->links() }}
+            </div>
+            
         </div>
     </div>
 </div>

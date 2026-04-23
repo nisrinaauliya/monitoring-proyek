@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Ppsmb;
 use App\Models\PpsmbHistory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -39,12 +40,15 @@ class PpsmbByUserController extends Controller
         $filePath = $file->storeAs('ppsmb_files', $fileName, 'public');
 
         // project leader berdasarkan model aplikasi
-        $projectLeader = match($request->model_aplikasi) {
-            'Aplikasi Internal MD'                                      => 'Rastansyah',
-            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => 'Jefry',
-            'Improvement IT System'                                     => 'Rastansyah',
-            default                                                     => null,
+        $tim = match($request->model_aplikasi) {
+            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot' => 'eksternal',
+            default => 'internal',
         };
+
+        $projectLeader = User::where('dept', 'IT')
+            ->where('role', 'project_leader')
+            ->where('tim', $tim)
+            ->value('name');
 
         $status = match($request->model_aplikasi) {
             'Improvement IT System' => 'Antrian Analisa BA IT',
