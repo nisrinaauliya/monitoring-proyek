@@ -12,8 +12,13 @@ class PpsmbDetailPengerjaan extends Model
         'penilaian',
         'mandays',
         'adjustment_mandays',
+        'is_done',
     ];
 
+    protected $casts = [
+        'is_done' => 'boolean',
+    ];
+    
     public function ppsmb()
     {
         return $this->belongsTo(Ppsmb::class);

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Rincian PPSMB')
+@section('title', 'Rincian PPSMB - Sistem Helpdesk')
 @section('page_title', 'Rincian PPSMB')
 
 @section('content')
@@ -125,26 +125,13 @@
             <i class="bi bi-bar-chart me-1"></i>Progress
         </h6>
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Status</label>
                 <input type="text" class="form-control" value="{{ $ppsmb->status }}" disabled>
             </div>
-            <div class="col-md-4">
-                <label class="form-label text-muted" style="font-size:13px;">Estimasi Mulai</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->estimasi_mulai ?? '-' }}" disabled>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label text-muted" style="font-size:13px;">Estimasi Selesai</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->estimasi_selesai ?? '-' }}" disabled>
-            </div>
-        </div>
-        <div class="mb-4">
-            <label class="form-label text-muted" style="font-size:13px;">Progress Pengerjaan</label>
-            <div class="d-flex align-items-center gap-3">
-                <div class="progress flex-grow-1" style="height: 10px;">
-                    <div class="progress-bar" style="width: {{ $ppsmb->progress }}%; background-color: #af2027;"></div>
-                </div>
-                <span class="fw-semibold" style="font-size:13px;">{{ $ppsmb->progress }}%</span>
+            <div class="col-md-6">
+                <label class="form-label text-muted" style="font-size:13px;">Presentase Pengerjaan</label>
+                <input type="text" class="form-control" value="{{ $ppsmb->progress }}%" disabled>
             </div>
         </div>
 
@@ -360,36 +347,41 @@
             <div class="card-body">
                 <form action="{{ route('ppsmbbyit.progress', $ppsmb->id) }}" method="POST">
                     @csrf
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label" style="font-size:13px;">Progress (%) <span class="text-danger">*</span></label>
-                            <input type="number" name="progress" class="form-control" min="0" max="100" value="{{ $ppsmb->progress }}" required>
-                        </div>
-                    </div>
                     @if($ppsmb->detailPengerjaan->count() > 0)
-                    <label class="form-label" style="font-size:13px;">Adjustment Mandays <span class="text-muted">(opsional)</span></label>
                     <div class="table-responsive mb-3">
                         <table class="table table-bordered align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th>Menu/Fitur</th>
-                                    <th>Mandays Awal</th>
+                                    <th>Penilaian</th>
+                                    <th>Mandays</th>
                                     <th>Adjustment Mandays</th>
+                                    <th class="text-center">Selesai?</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($ppsmb->detailPengerjaan as $detail)
                                 <tr>
                                     <td>{{ $detail->menu }}</td>
+                                    <td>{{ $detail->penilaian ?? '-' }}</td>
                                     <td>{{ $detail->mandays }}</td>
                                     <td>
-                                        <input type="number" name="adjustment_mandays[{{ $detail->id }}]" class="form-control form-control-sm" value="{{ $detail->adjustment_mandays }}" min="0">
+                                        <input type="number" name="adjustment_mandays[{{ $detail->id }}]"
+                                            class="form-control form-control-sm"
+                                            value="{{ $detail->adjustment_mandays }}" min="0">
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="is_done[{{ $detail->id }}]"
+                                            value="1" class="form-check-input"
+                                            {{ $detail->is_done ? 'checked' : '' }}>
                                     </td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @else
+                    <p class="text-muted" style="font-size:13px;">Belum ada detail pengerjaan.</p>
                     @endif
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-sm btn-outline-secondary">

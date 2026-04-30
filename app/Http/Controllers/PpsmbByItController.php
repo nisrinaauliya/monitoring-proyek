@@ -39,7 +39,7 @@ class PpsmbByItController extends Controller
         };
 
         $isProjectLeader = $user->role === 'project_leader' && $user->tim === $timProject;
-        $isBa            = $user->role === 'business_analyst' && $user->name === $ppsmb->pic_ba;
+        $isBa            = $user->role === 'business_analyst' && ($user->name === $ppsmb->pic_ba || $user->name === $ppsmb->secondary_ba);
         $isDeveloper     = $user->role === 'developer' && $user->name === $ppsmb->developer;
 
         // list PIC BA sesuai tim model aplikasi
@@ -183,21 +183,31 @@ class PpsmbByItController extends Controller
         $ppsmb = Ppsmb::findOrFail($id);
 
         $request->validate([
-            'progress'           => 'required|integer|min:0|max:100',
+            'is_done'           => 'nullable|array',
             'adjustment_mandays' => 'nullable|array',
         ]);
 
-        // update adjustment mandays kalau ada
-        if ($request->adjustment_mandays) {
-            foreach ($request->adjustment_mandays as $detailId => $value) {
-                $ppsmb->detailPengerjaan()->where('id', $detailId)->update([
-                    'adjustment_mandays' => $value,
-                ]);
-            }
+        foreach ($ppsmb->detailPengerjaan as $detail) {
+            $detail->update([
+                'is_done'            => isset($request->is_done[$detail->id]),
+                'adjustment_mandays' => $request->adjustment_mandays[$detail->id] ?? $detail->adjustment_mandays,
+            ]);
         }
 
-        $ppsmb->update([
-            'progress' => $request->progress,
+        $totalMandays = $ppsmb->detailPengerjaan->sum('mandays');
+        $mandaysDone  = $ppsmb->detailPengerjaan->where('is_done', true)->sum('mandays');
+
+        $progress = $totalMandays > 0
+            ? round(($mandaysDone / $totalMandays) * 90, 2)
+            : 0;
+
+        $ppsmb->update(['progress' => $progress]);
+
+        PpsmbHistory::create([
+            'ppsmb_id'  => $ppsmb->id,
+            'pemeriksa' => Auth::user()->name,
+            'status'    => 'Proses Development',
+            'catatan'   => null,
         ]);
 
         return redirect()->route('ppsmbbyit.show', $ppsmb->id)->with('success', 'Progress berhasil diupdate.');

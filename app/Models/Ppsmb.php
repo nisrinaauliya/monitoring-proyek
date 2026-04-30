@@ -30,6 +30,21 @@ class Ppsmb extends Model
         'revisi_at',
     ];
 
+    protected $casts = [
+        'estimasi_mulai' => 'datetime',
+        'estimasi_selesai' => 'datetime',
+    ];
+
+    public function getEstimasiMulaiFormattedAttribute()
+    {
+        return $this->estimasi_mulai?->translatedFormat('d F Y') ?? '-';
+    }
+
+    public function getEstimasiSelesaiFormattedAttribute()
+    {
+        return $this->estimasi_selesai?->translatedFormat('d F Y') ?? '-';
+    }
+
     // Relasi ke user
     public function user()
     {

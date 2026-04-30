@@ -98,6 +98,17 @@
             </div>
         </div>
 
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label text-muted" style="font-size:13px;">Secondary BA</label>
+                <input type="text" class="form-control" value="{{ $ppsmb->secondary_ba ?? '-' }}" disabled>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted" style="font-size:13px;">Developer</label>
+                <input type="text" class="form-control" value="{{ $ppsmb->developer ?? '-' }}" disabled>
+            </div>
+        </div>
+
         <div class="row mb-4">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Tangible Benefit</label>

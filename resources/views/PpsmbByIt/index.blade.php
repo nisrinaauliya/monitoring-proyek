@@ -67,8 +67,8 @@
                             @endphp
                             <span class="badge bg-{{ $badge }}">{{ $ppsmb->status }}</span>
                         </td>
-                        <td>{{ $ppsmb->estimasi_mulai ?? '-' }}</td>
-                        <td>{{ $ppsmb->estimasi_selesai ?? '-' }}</td>
+                        <td>{{ $ppsmb->estimasi_mulai_formatted }}</td>
+                        <td>{{ $ppsmb->estimasi_selesai_formatted }}</td>
                         <td>{{ $ppsmb->progress }}%</td>
                         <td>
                             <a href="{{ route('ppsmbbyit.show', $ppsmb->id) }}"
