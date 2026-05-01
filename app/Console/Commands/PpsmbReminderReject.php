@@ -44,10 +44,17 @@ class PpsmbReminderReject extends Command
             } elseif (in_array($hariKe, [7, 14, 21])) {
                 Mail::to($ppsmb->user->email)->send(new PpsmbReminderMail($ppsmb, $hariKe));
 
+                PpsmbHistory::create([
+                    'ppsmb_id'  => $ppsmb->id,
+                    'pemeriksa' => 'System',
+                    'status'    => 'Revisi User',
+                    'catatan'   => "Reminder hari ke-{$hariKe}: PPSMB belum direvisi. Segera lakukan revisi sebelum hari ke-30 atau pengajuan akan otomatis direject.",
+                ]);
+
                 $this->info("Reminder hari ke-{$hariKe} dikirim untuk PPSMB #{$ppsmb->id}.");
             }
-        }
 
+        }
         $this->info('Selesai.');
     }
 }
