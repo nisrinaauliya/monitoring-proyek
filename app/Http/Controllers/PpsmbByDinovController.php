@@ -13,7 +13,7 @@ class PpsmbByDinovController extends Controller
     {
         $ppsmbs = Ppsmb::with('user')
             ->where('model_aplikasi', 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot')
-            ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit By User - Verifikasi CMD/Dinov'])
+            ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit by User - Verifikasi CMD/Dinov'])
             ->latest()
             ->paginate(10);
 

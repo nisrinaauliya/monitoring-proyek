@@ -13,7 +13,7 @@ class PpsmbByCmdController extends Controller
     {
         $ppsmbs = Ppsmb::with('user')
             ->where('model_aplikasi', 'Aplikasi Internal MD')
-            ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit By User - Verifikasi CMD/Dinov'])
+            ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit by User - Verifikasi CMD/Dinov'])
             ->latest()
             ->paginate(10);
 

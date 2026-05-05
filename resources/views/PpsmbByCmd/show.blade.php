@@ -198,7 +198,7 @@
         </div>
 
         {{-- Aksi CMD - hanya tampil jika status Verifikasi CMD/Dinov dan Edit by User --}}
-        @if($ppsmb->status === 'Verifikasi CMD/Dinov' || $ppsmb->status === 'Edit By User - Verifikasi CMD/Dinov')
+        @if($ppsmb->status === 'Verifikasi CMD/Dinov' || $ppsmb->status === 'Edit by User - Verifikasi CMD/Dinov')
         <h6 class="fw-semibold mb-3 border-bottom pb-2">
             <i class="bi bi-check-circle me-1"></i>Verifikasi
         </h6>

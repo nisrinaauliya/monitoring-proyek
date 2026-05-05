@@ -94,7 +94,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <div class="flex-grow-1 d-flex flex-column">
+    <div class="flex-grow-1 d-flex flex-column" style="min-width:0; overflow:hidden;">
         <header class="navbar navbar-light bg-white border-bottom shadow-sm sticky-top" style="height: 65px;">
             <div class="container-fluid px-4">
                 <div class="d-flex align-items-center justify-content-between w-100">
@@ -142,12 +142,13 @@
             </div>
         </header>
 
-        <main class="flex-grow-1 p-4 overflow-auto">
+        <main class="flex-grow-1 p-4 overflow-x-hidden overflow-y-auto" style="min-width:0;">
             @yield('content')
         </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @stack('scripts')
 
  <script>

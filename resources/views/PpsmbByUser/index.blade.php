@@ -61,20 +61,11 @@
                         <td>{{ $ppsmb->quartal }}</td>
                         <td>
                             @php
-                                $badge = match($ppsmb->status) {
-                                    'Verifikasi CMD/Dinov'                  => 'secondary',
-                                    'Revisi User'                           => 'warning',
-                                    'Edit By User - Verifikasi CMD/Dinov'   => 'warning',
-                                    'Antrian Analisa BA IT'                 => 'primary',
-                                    'Analisa BA IT'                         => 'primary',
-                                    'Antrian Development'                   => 'primary',
-                                    'Proses Development'                    => 'primary',
-                                    'UAT'                                   => 'warning',
-                                    'Done (Live)'                           => 'success',
-                                    default                                 => 'danger',
-                                };
+                                $sc = config('status.colors')[$ppsmb->status] ?? '#6c757d';
                             @endphp
-                            <span class="badge bg-{{ $badge }}">{{ $ppsmb->status }}</span>
+                            <span class="px-2 py-1 rounded" style="font-size:12px; background:{{ $sc }}; color:white; white-space:nowrap;">
+                                {{ $ppsmb->status }}
+                            </span>
                         </td>
                         <td>{{ $ppsmb->estimasi_mulai_formatted }}</td>
                         <td>{{ $ppsmb->estimasi_selesai_formatted }}</td>

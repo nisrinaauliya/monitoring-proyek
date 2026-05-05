@@ -135,7 +135,7 @@ class PpsmbByUserController extends Controller
 
         $status = match($request->model_aplikasi) {
             'Improvement IT System' => 'Antrian Analisa BA IT',
-            default                 => 'Edit By User - Verifikasi CMD/Dinov',
+            default                 => 'Edit by User - Verifikasi CMD/Dinov',
         };
 
         $ppsmb->update([
