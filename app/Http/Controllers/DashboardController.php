@@ -15,7 +15,7 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         return match($user->role) {
-            'admin'                                             => view('dashboard.admin'),
+            'admin'                                             => $this->adminDashboard(),
             'verifikator'                                       => $this->verifikatorDashboard($user),
             'project_leader', 'business_analyst', 'developer'   => $this->itDashboard($user),
             default                                             => $this->userDashboard($user),
@@ -343,6 +343,59 @@ class DashboardController extends Controller
         return view('dashboard.it.developer', compact(
             'ppsmbs', 'totalAssigned', 'prosesDev', 'uat', 'doneLive',
             'projectList', 'user',
+        ));
+    }
+
+    private function adminDashboard()
+    {
+        $allPpsmb = Ppsmb::with('user')->latest()->get();
+
+        $statusAktif = [
+            'Verifikasi CMD/DINOV', 'Edit by User', 'Revisi User',
+            'Antrian Analisa BA IT', 'Analisa BA IT',
+            'Antrian Development', 'Proses Development', 'UAT',
+        ];
+
+        // Summary Cards
+        $totalProject   = $allPpsmb->count();
+        $totalAktif     = $allPpsmb->whereIn('status', $statusAktif)->count();
+        $totalSelesai   = $allPpsmb->where('status', 'Done (Live)')->count();
+        $totalRejected  = $allPpsmb->where('status', 'Rejected')->count();
+
+        // Chart — distribusi per status
+        $perStatus = $allPpsmb->groupBy('status')->map->count()->sortDesc();
+
+        // Workload per Tim
+        $perTim = $allPpsmb->whereIn('status', $statusAktif)
+            ->groupBy('tim')->map->count()->sortDesc();
+
+        // Workload per BA
+        $perBa = $allPpsmb->whereIn('status', $statusAktif)
+            ->whereNotNull('pic_ba')
+            ->groupBy('pic_ba')->map->count()->sortDesc();
+
+        // Workload per Developer
+        $perDeveloper = $allPpsmb->whereIn('status', $statusAktif)
+            ->whereNotNull('developer')
+            ->where('developer', '!=', '')
+            ->groupBy('developer')->map->count()->sortDesc();
+
+        // Project Telat
+        $projectTelat = $allPpsmb->whereIn('status', $statusAktif)
+            ->filter(fn($p) => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast())
+            ->sortBy('estimasi_selesai')
+            ->values();
+
+        // Aktivitas Terbaru
+        $aktivitasTerbaru = PpsmbHistory::with('ppsmb')
+            ->latest()
+            ->take(10)
+            ->get();
+
+        return view('dashboard.admin', compact(
+            'totalProject', 'totalAktif', 'totalSelesai', 'totalRejected',
+            'perStatus', 'perTim', 'perBa', 'perDeveloper',
+            'projectTelat', 'aktivitasTerbaru',
         ));
     }
 }

@@ -93,8 +93,8 @@ $summaryCards = [
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-start mb-1">
                             <div>
-                                <div class="fw-medium" style="font-size:14px;">{{ $p->nama_project }}</div>
-                                <div class="text-muted" style="font-size:13px;">{{ $p->no_ppsmb ?? '—' }}</div>
+                                <div class="fw-medium" style="font-size:16px;">{{ $p->nama_project }}</div>
+                                <div class="text-muted" style="font-size:14px;">{{ $p->no_ppsmb ?? '—' }}</div>
                             </div>
                             <span class="fw-bold" style="font-size:18px;color:{{ $sc }};">
                                 {{ number_format($p->progress, 0) }}%
@@ -105,16 +105,16 @@ $summaryCards = [
                                  style="width:{{ $p->progress }}%;background:{{ $sc }};transition:width .6s ease;"></div>
                         </div>
                         <div class="d-flex justify-content-between mt-1">
-                            <span class="text-muted" style="font-size:12px;">Progress</span>
+                            <span class="text-muted" style="font-size:14px;">Progress</span>
                             <a href="{{ route('ppsmbbyit.show', $p->id) }}"
-                               class="btn btn-sm btn-info mt-1" style="font-size:12px;">Rincian</a>
+                               class="btn btn-sm btn-info mt-1" style="font-size:14px;">Rincian</a>
                         </div>
                     </div>
                     @endforeach
                 @else
                     <div class="d-flex flex-column align-items-center justify-content-center text-center py-4">
                         <i class="bi bi-check-circle text-success mb-2" style="font-size:32px;"></i>
-                        <div style="font-size:14px;font-weight:500;">Tidak ada project development aktif</div>
+                        <div style="font-size:16px;font-weight:500;">Tidak ada project development aktif</div>
                     </div>
                 @endif
             </div>
@@ -143,27 +143,27 @@ $summaryCards = [
                     @endphp
                     <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom">
                         <div class="d-flex flex-column align-items-center flex-shrink-0" style="width:12px;margin-top:4px;">
-                            <div class="rounded-circle" style="width:10px;height:10px;background:{{ $sc }};flex-shrink:0;"></div>
+                            <div class="rounded-circle mt-1" style="width:10px;height:10px;background:{{ $sc }};flex-shrink:0;"></div>
                         </div>
                         <div class="flex-grow-1">
-                            <div class="fw-medium" style="font-size:14px;">{{ $p->nama_project }}</div>
+                            <div class="fw-medium" style="font-size:16px;">{{ $p->nama_project }}</div>
                             <div class="d-flex align-items-center gap-2 mt-1">
                                 <span class="px-2 py-1 rounded"
-                                      style="font-size:12px;background:{{ $sc }};color:white;white-space:nowrap;">
+                                      style="font-size:14px;background:{{ $sc }};color:white;white-space:nowrap;">
                                     {{ $p->status }}
                                 </span>
                             </div>
-                            <div class="text-muted mt-1" style="font-size:13px;">
+                            <div class="text-muted mt-1" style="font-size:14px;">
                                 Estimasi: {{ Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y') }}
                             </div>
                         </div>
                         <div class="text-end flex-shrink-0">
                             @if($pl['telat'])
-                                <div class="fw-bold text-danger" style="font-size:16px;">{{ abs($h) }}</div>
-                                <div class="text-danger" style="font-size:12px;">hari telat</div>
+                                <div class="fw-bold text-danger" style="font-size:18px;">{{ abs($h) }}</div>
+                                <div class="text-danger" style="font-size:14px;">hari telat</div>
                             @else
-                                <div class="fw-bold {{ $h <= 7 ? 'text-warning' : 'text-muted' }}" style="font-size:16px;">{{ $h }}</div>
-                                <div class="text-muted" style="font-size:12px;">hari lagi</div>
+                                <div class="fw-bold {{ $h <= 7 ? 'text-warning' : 'text-muted' }}" style="font-size:18px;">{{ $h }}</div>
+                                <div class="text-muted" style="font-size:14px;">hari lagi</div>
                             @endif
                         </div>
                     </div>
@@ -172,8 +172,8 @@ $summaryCards = [
                 @else
                     <div class="d-flex flex-column align-items-center justify-content-center text-center py-4">
                         <i class="bi bi-calendar-x text-muted mb-2" style="font-size:32px;"></i>
-                        <div style="font-size:14px;font-weight:500;">Belum ada estimasi selesai</div>
-                        <div class="text-muted" style="font-size:13px;">Project belum memiliki estimasi selesai</div>
+                        <div style="font-size:16px;font-weight:500;">Belum ada estimasi selesai</div>
+                        <div class="text-muted" style="font-size:14px;">Project belum memiliki estimasi selesai</div>
                     </div>
                 @endif
             </div>
@@ -220,7 +220,7 @@ $summaryCards = [
         for (let p = 1; p <= pages; p++) {
             const btn = document.createElement('button');
             btn.className = `btn btn-sm rounded-pill ${p === page ? 'btn-dark' : 'btn-outline-secondary'}`;
-            btn.style.cssText = 'font-size:13px;width:30px;padding:0;height:28px;';
+            btn.style.cssText = 'font-size:14px;width:30px;padding:0;height:28px;';
             btn.textContent = p;
             btn.addEventListener('click', () => onPage(p));
             paginationEl.appendChild(btn);
@@ -237,11 +237,11 @@ $summaryCards = [
 
         return `
             <tr class="border-top ${p.telat ? 'table-danger' : ''}">
-                <td class="px-3 py-3"><span class="text-muted" style="font-size:13px;">${p.no_ppsmb}</span></td>
+                <td class="px-3 py-3"><span class="text-muted" style="font-size:14px;">${p.no_ppsmb}</span></td>
                 <td class="py-3 fw-medium">${p.nama_project}</td>
                 <td class="py-3">
                     <span class="px-2 py-1 rounded"
-                          style="font-size:13px;background:${p.color};color:white;white-space:nowrap;">
+                          style="font-size:14px;background:${p.color};color:white;white-space:nowrap;">
                         ${p.status}
                     </span>
                 </td>
