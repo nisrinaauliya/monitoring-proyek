@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Ppsmb;
 use App\Models\PpsmbHistory;
 use App\Models\User;
@@ -13,7 +14,15 @@ class PpsmbByUserController extends Controller
 {
     public function index()
     {
-        $ppsmbs = Ppsmb::with('user')->latest()->paginate(10);
+        $ppsmbs = Ppsmb::with([
+            'user',
+            'department',
+            'projectLeader',
+            'picBa',
+            'secondaryBa',
+            'developerUser'
+        ])->latest()->paginate(10);
+
         return view('ppsmbbyuser.index', compact('ppsmbs'));
     }
 
@@ -35,9 +44,9 @@ class PpsmbByUserController extends Controller
         ]);
 
         // upload file
-        $file = $request->file('file');
-        $fileName = $file->getClientOriginalName();
-        $filePath = $file->storeAs('ppsmb_files', $fileName, 'public');
+        $file       = $request->file('file');
+        $fileName   = $file->getClientOriginalName();
+        $filePath   = $file->storeAs('ppsmb_files', $fileName, 'public');
 
         // project leader berdasarkan model aplikasi
         $tim = match($request->model_aplikasi) {
@@ -45,24 +54,30 @@ class PpsmbByUserController extends Controller
             default => 'internal',
         };
 
-        $projectLeader = User::where('dept', 'IT')
+        //ambil dept it
+        $itDepartment = Department::where('code', 'IT')->first();
+
+        //cari project leadder sesuai tim
+        $projectLeader = User::where('dept_id', $itDepartment->id)
             ->where('role', 'project_leader')
             ->where('tim', $tim)
-            ->value('name');
+            ->value('id');
 
+        //status awal
         $status = match($request->model_aplikasi) {
             'Improvement IT System' => 'Antrian Analisa BA IT',
             default                 => 'Verifikasi CMD/Dinov',
         };
 
+        //simpan ppsmb
         $ppsmb = Ppsmb::create([
             'user_id'           => Auth::id(),
-            'dept'              => Auth::user()->dept,
+            'dept_id'           => Auth::user()->dept_id,
             'model_aplikasi'    => $request->model_aplikasi,
             'nama_project'      => $request->nama_project,
             'tahun'             => $request->tahun,
             'quartal'           => $request->quartal,
-            'jenis_permintaan'  => implode(', ', $request->jenis_permintaan),
+            'jenis_permintaan'  => $request->jenis_permintaan,
             'uraian_permintaan' => $request->uraian_permintaan,
             'tangible_benefit'  => $request->tangible_benefit,
             'intangible_benefit'=> $request->intangible_benefit,
@@ -71,10 +86,12 @@ class PpsmbByUserController extends Controller
             'project_leader'    => $projectLeader,
         ]);
 
+        //simpan history
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
-            'status'    => 'Verifikasi CMD/Dinov',
+            'pemeriksa' => Auth::id(),
+            'status'    => $status,
+            'progress'  => 0,
             'catatan'   => null,
         ]);
 
@@ -83,11 +100,11 @@ class PpsmbByUserController extends Controller
 
     public function checkUat()
     {
-        $uatCount = Ppsmb::where('dept', Auth::user()->dept)
+        $uatCount = Ppsmb::where('dept_id', Auth::user()->dept_id)
             ->where('status', 'UAT')
             ->count();
 
-        $uatAging = Ppsmb::where('dept', Auth::user()->dept)
+        $uatAging = Ppsmb::where('dept_id', Auth::user()->dept_id)
             ->where('status', 'UAT')
             ->where('updated_at', '<=', now()->subDays(10))
             ->exists();
@@ -99,7 +116,17 @@ class PpsmbByUserController extends Controller
 
     public function show($id)
     {
-        $ppsmb = Ppsmb::with(['user', 'histories', 'detailPengerjaan'])->findOrFail($id);
+        $ppsmb = Ppsmb::with([
+            'user', 
+            'department',
+            'projectLeader',
+            'picBa',
+            'secondaryBa',
+            'developerUser',
+            'histories.pemeriksaUser', 
+            'detailPengerjaan'
+        ])->findOrFail($id);
+
         return view('ppsmbbyuser.show', compact('ppsmb'));
     }
 
@@ -108,6 +135,7 @@ class PpsmbByUserController extends Controller
         $ppsmb = Ppsmb::where('user_id', Auth::id())
                        ->where('status', 'Revisi User')
                        ->findOrFail($id);
+
         return view('ppsmbbyuser.edit', compact('ppsmb'));
     }
 
@@ -123,21 +151,24 @@ class PpsmbByUserController extends Controller
         ]);
 
         $filePath = $ppsmb->file;
+
         if ($request->hasFile('file')) {
+
             //hapus file lama
             Storage::disk('public')->delete($ppsmb->file);
 
             //upload file baru
-            $file = $request->file('file');
-            $fileName = $file->getClientOriginalName();
-            $filePath = $file->storeAs('ppsmb_files', $fileName, 'public');
+            $file       = $request->file('file');
+            $fileName   = $file->getClientOriginalName();
+            $filePath   = $file->storeAs('ppsmb_files', $fileName, 'public');
         }
 
-        $status = match($request->model_aplikasi) {
+        $status = match($ppsmb->model_aplikasi) {
             'Improvement IT System' => 'Antrian Analisa BA IT',
             default                 => 'Edit by User - Verifikasi CMD/Dinov',
         };
 
+        //update ppsmb
         $ppsmb->update([
             'uraian_permintaan' => $request->uraian_permintaan,
             'tangible_benefit'  => $request->tangible_benefit,
@@ -147,10 +178,12 @@ class PpsmbByUserController extends Controller
             'revisi_at'         => null,
         ]);
 
+        //simpan history
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => $status,
+            'progress'  => $ppsmb->progress,
             'catatan'   => null,
         ]);
 

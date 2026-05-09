@@ -15,7 +15,7 @@
             <div style="background: #f9f9f9; border-left: 4px solid #af2027; padding: 16px; margin: 20px 0; border-radius: 4px;">
                 <p style="margin: 4px 0; font-size: 14px;"><strong>Nama Project:</strong> {{ $ppsmb->nama_project }}</p>
                 <p style="margin: 4px 0; font-size: 14px;"><strong>Model Aplikasi:</strong> {{ $ppsmb->model_aplikasi }}</p>
-                <p style="margin: 4px 0; font-size: 14px;"><strong>Departemen:</strong> {{ $ppsmb->dept }}</p>
+                <p style="margin: 4px 0; font-size: 14px;"><strong>Departemen:</strong> {{ $ppsmb->department->code }}</p>
                 <p style="margin: 4px 0; font-size: 14px;"><strong>Dikembalikan pada:</strong> {{ \Carbon\Carbon::parse($ppsmb->revisi_at)->format('d M Y H:i') }}</p>
             </div>
 

@@ -2,17 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Ppsmb;
 use App\Models\PpsmbHistory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PpsmbByItController extends Controller
 {
+
     public function index()
     {
-        $ppsmbs = Ppsmb::with('user')
+        $ppsmbs = Ppsmb::with([
+            'user',
+            'department',
+            'projectLeader',
+            'picBa',
+            'secondaryBa',
+            'developerUser'
+        ])
             ->whereIn('status', [
                 'Antrian Analisa BA IT',
                 'Analisa BA IT',
@@ -28,9 +38,19 @@ class PpsmbByItController extends Controller
 
     public function show($id)
     {
-        $ppsmb = Ppsmb::with(['user', 'histories', 'detailPengerjaan'])->findOrFail($id);
+        $ppsmb = Ppsmb::with([
+            'user',
+            'department',
+            'projectLeader',
+            'picBa',
+            'secondaryBa',
+            'developerUser',
+            'histories.pemeriksaUser',
+            'detailPengerjaan'
+        ])->findOrFail($id);
         
-        $user = Auth::user();
+        $user           = Auth::user();
+        $itDepartment   = Department::where('code', 'IT')->first();
 
         //menentukan tim project
         $timProject = match($ppsmb->model_aplikasi) {
@@ -38,22 +58,22 @@ class PpsmbByItController extends Controller
             default => 'internal',
         };
 
-        $isProjectLeader = $user->role === 'project_leader' && $user->tim === $timProject;
-        $isBa            = $user->role === 'business_analyst' && ($user->name === $ppsmb->pic_ba || $user->name === $ppsmb->secondary_ba);
-        $isDeveloper     = $user->role === 'developer' && $user->name === $ppsmb->developer;
+        $isProjectLeader = $user->role === 'project_leader'     && $user->tim === $timProject;
+        $isBa            = $user->role === 'business_analyst'   && ($user->id === $ppsmb->pic_ba || $user->id === $ppsmb->secondary_ba);
+        $isDeveloper     = $user->role === 'developer'          && $user->id === $ppsmb->developer;
 
         // list PIC BA sesuai tim model aplikasi
         $listBa = match($ppsmb->model_aplikasi) {
-            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => User::where('dept', 'IT')->where('role', 'business_analyst')->where('tim', 'eksternal')->get(),
-            'Improvement IT System'                                     => User::where('dept', 'IT')->where('role', 'business_analyst')->get(),
-            default                                                     => User::where('dept', 'IT')->where('role', 'business_analyst')->where('tim', 'internal')->get(),
+            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => User::where('dept_id', $itDepartment->id)->where('role', 'business_analyst')->where('tim', 'eksternal')->get(),
+            'Improvement IT System'                                     => User::where('dept_id', $itDepartment->id)->where('role', 'business_analyst')->get(),
+            default                                                     => User::where('dept_id', $itDepartment->id)->where('role', 'business_analyst')->where('tim', 'internal')->get(),
         };
 
         // list Developer sesuai tim model aplikasi
         $listDeveloper = match($ppsmb->model_aplikasi) {
-            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => User::where('dept', 'IT')->where('role', 'developer')->where('tim', 'eksternal')->get(),
-            'Improvement IT System'                                     => User::where('dept', 'IT')->where('role', 'developer')->get(),
-            default                                                     => User::where('dept', 'IT')->where('role', 'developer')->where('tim', 'internal')->get(),
+            'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'     => User::where('dept_id', $itDepartment->id)->where('role', 'developer')->where('tim', 'eksternal')->get(),
+            'Improvement IT System'                                     => User::where('dept_id', $itDepartment->id)->where('role', 'developer')->get(),
+            default                                                     => User::where('dept_id', $itDepartment->id)->where('role', 'developer')->where('tim', 'internal')->get(),
         };
 
         return view('ppsmbbyit.show', compact('ppsmb', 'isProjectLeader', 'isBa', 'isDeveloper', 'listBa', 'listDeveloper'));
@@ -66,25 +86,33 @@ class PpsmbByItController extends Controller
             abort(403, 'Hanya Project Leader yang bisa melakukan aksi ini.');
         }
 
+        $request->validate([
+            'pic_ba'        => 'required|exists:users,id',
+            'secondary_ba'  => 'nullable|exists:users,id'
+        ]);
+
         $ppsmb = Ppsmb::findOrFail($id);
 
         // generate no PPSMB format: PPSMB/YYYYMM/XXXXX
-        $count = Ppsmb::whereNotNull('no_ppsmb')->count() + 1;
-        $noPpsmb = 'PPSMB/' . date('Ym') . '/' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        DB::transaction(function () use ($request, $ppsmb){
+            $count      = Ppsmb::whereNotNull('no_ppsmb')->count() + 1;
+            $noPpsmb    = 'PPSMB/' . date('Ym') . '/' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
-        $ppsmb->update([
-            'no_ppsmb' => $noPpsmb,
-            'pic_ba'   => $request->pic_ba,
-            'secondary_ba' => $request->secondary_ba,
-            'status'   => 'Analisa BA IT',
-        ]);
+            $ppsmb->update([
+                'no_ppsmb'      => $noPpsmb,
+                'pic_ba'        => $request->pic_ba,
+                'secondary_ba'  => $request->secondary_ba,
+                'status'        => 'Analisa BA IT',
+            ]);
 
-        PpsmbHistory::create([
-            'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
-            'status'    => 'Analisa BA IT',
-            'catatan'   => null,
-        ]);
+            PpsmbHistory::create([
+                'ppsmb_id'  => $ppsmb->id,
+                'pemeriksa' => Auth::id(),
+                'status'    => 'Analisa BA IT',
+                'progress'  => $ppsmb->progress,
+                'catatan'   => null,
+            ]);
+        });
 
         return redirect()->route('ppsmbbyit.show', $ppsmb->id)->with('success', 'No PPSMB berhasil digenerate.');
     }
@@ -120,8 +148,9 @@ class PpsmbByItController extends Controller
 
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => 'Antrian Development',
+            'progress'  => $ppsmb->progress,
             'catatan'   => null,
         ]);
 
@@ -138,7 +167,7 @@ class PpsmbByItController extends Controller
         $ppsmb = Ppsmb::findOrFail($id);
 
         $request->validate([
-            'developer' => 'required|string',
+            'developer' => 'required|exists:users,id',
         ]);
 
         $ppsmb->update([
@@ -148,8 +177,9 @@ class PpsmbByItController extends Controller
 
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => 'Proses Development',
+            'progress'  => $ppsmb->progress,
             'catatan'   => null,
         ]);
 
@@ -162,6 +192,11 @@ class PpsmbByItController extends Controller
         if (Auth::user()->role !== 'project_leader') {
             abort(403, 'Hanya Project Leader yang bisa melakukan aksi ini.');
         }
+
+        $request->validate([
+            'estimasi_mulai'    =>'nullable|date',
+            'estimasi_selesai'  => 'nullable|date|after_or_equal:estimasi_mulai'
+        ]);
 
         $ppsmb = Ppsmb::findOrFail($id);
 
@@ -183,8 +218,8 @@ class PpsmbByItController extends Controller
         $ppsmb = Ppsmb::findOrFail($id);
 
         $request->validate([
-            'is_done'           => 'nullable|array',
-            'adjustment_mandays' => 'nullable|array',
+            'is_done'               => 'nullable|array',
+            'adjustment_mandays'    => 'nullable|array',
         ]);
 
         foreach ($ppsmb->detailPengerjaan as $detail) {
@@ -194,19 +229,15 @@ class PpsmbByItController extends Controller
             ]);
         }
 
-        $totalMandays = $ppsmb->detailPengerjaan->sum('mandays');
-        $mandaysDone  = $ppsmb->detailPengerjaan->where('is_done', true)->sum('mandays');
-
-        $progress = $totalMandays > 0
-            ? round(($mandaysDone / $totalMandays) * 90, 2)
-            : 0;
+        $progress = $ppsmb->hitungProgress();
 
         $ppsmb->update(['progress' => $progress]);
 
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => 'Proses Development',
+            'progress'  => $progress,
             'catatan'   => null,
         ]);
 
@@ -229,8 +260,9 @@ class PpsmbByItController extends Controller
 
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => 'UAT',
+            'progress'  => 90,
             'catatan'   => null,
         ]);
 
@@ -257,8 +289,9 @@ class PpsmbByItController extends Controller
 
             PpsmbHistory::create([
                 'ppsmb_id'  => $ppsmb->id,
-                'pemeriksa' => Auth::user()->name,
+                'pemeriksa' => Auth::id(),
                 'status'    => 'Proses Development',
+                'progress'  => $ppsmb->progress,
                 'catatan'   => null,
             ]);
         } else {
@@ -269,8 +302,9 @@ class PpsmbByItController extends Controller
 
             PpsmbHistory::create([
                 'ppsmb_id'  => $ppsmb->id,
-                'pemeriksa' => Auth::user()->name,
+                'pemeriksa' => Auth::id(),
                 'status'    => 'Done (Live)',
+                'progress'  => 100,
                 'catatan'   => null,
             ]);
         }

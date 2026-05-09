@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Department;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class VerifikatorUserSeeder extends Seeder
 {
@@ -13,22 +15,34 @@ class VerifikatorUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'CMD',
-            'username' => 'cmd',
-            'email'=> 'cmd@example.com',
-            'dept' => 'CMD',
-            'role' => 'user',
-            'password' => bcrypt('wahana123'),
-        ]);
-        
-        User::create([
-            'name' => 'DINOV',
-            'username' => 'dinov',
-            'email'=> 'dinov@example.com',
-            'dept' => 'DINOV',
-            'role' => 'user',
-            'password' => bcrypt('wahana123'),
-        ]);
+        $verifikators = [
+            [
+                'name' => 'CMD Verifikator',
+                'email' => 'nisrinaauliyacareer@gmail.com',
+                'username' => 'cmd',
+                'dept_code' => 'CMD',
+            ],
+            [
+                'name' => 'DINOV Verifikator',
+                'email' => 'nisrinaauliya1@gmail.com',
+                'username' => 'dinov',
+                'dept_code' => 'DIN',
+            ],
+        ];
+
+        foreach ($verifikators as $user) {
+
+            $department = Department::where('code', $user['dept_code'])->first();
+
+            User::create([
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'username' => $user['username'],
+                'dept_id' => $department->id,
+                'role' => 'verifikator',
+                'tim' => null,
+                'password' => Hash::make('wahana123'),
+            ]);
+        }
     }
 }

@@ -29,7 +29,7 @@
         <div class="row mb-4">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Departemen</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->dept }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->department->code }}" disabled>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">User</label>
@@ -90,22 +90,22 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Project Leader</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->project_leader ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->projectLeader->name ?? '-' }}" disabled>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">PIC BA</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->pic_ba ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->picBa->name ?? '-' }}" disabled>
             </div>
         </div>
 
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Secondary BA</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->secondary_ba ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->secondaryBa->name ?? '-' }}" disabled>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Developer</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->developer ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->developerUser->name ?? '-' }}" disabled>
             </div>
         </div>
 
@@ -184,7 +184,7 @@
                     @forelse($ppsmb->histories as $history)
                     <tr>
                         <td>{{ $history->created_at->format('d M Y H:i') }}</td>
-                        <td>{{ $history->pemeriksa }}</td>
+                        <td>{{ $history->pemeriksaUser->name ?? 'System' }}</td>
                         <td>{{ $history->status }}</td>
                         <td>{{ $history->catatan ?? '-' }}</td>
                     </tr>
@@ -212,7 +212,7 @@
                             <select name="pic_ba" class="form-select" required>
                                 <option value="">-- Pilih PIC BA --</option>
                                 @foreach($listBa as $ba)
-                                    <option value="{{ $ba->name }}">{{ $ba->name }}</option>
+                                    <option value="{{ $ba->id }}">{{ $ba->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -221,7 +221,7 @@
                             <select name="secondary_ba" class="form-select">
                                 <option value="">-- Pilih Secondary BA --</option>
                                 @foreach($listBa as $ba)
-                                    <option value="{{ $ba->name }}">{{ $ba->name }}</option>
+                                    <option value="{{ $ba->id }}">{{ $ba->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -298,7 +298,7 @@
                             <select name="developer" class="form-select" required>
                                 <option value="">-- Pilih Developer --</option>
                                 @foreach($listDeveloper as $dev)
-                                    <option value="{{ $dev->name }}">{{ $dev->name }}</option>
+                                    <option value="{{ $dev->id }}">{{ $dev->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -323,11 +323,11 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:13px;">Estimasi Mulai</label>
-                            <input type="date" name="estimasi_mulai" class="form-control" value="{{ $ppsmb->estimasi_mulai }}">
+                            <input type="date" name="estimasi_mulai" class="form-control" value="{{ $ppsmb->estimasi_mulai?->format('Y-m-d') }}">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:13px;">Estimasi Selesai</label>
-                            <input type="date" name="estimasi_selesai" class="form-control" value="{{ $ppsmb->estimasi_selesai }}">
+                            <input type="date" name="estimasi_selesai" class="form-control" value="{{ $ppsmb->estimasi_selesai?->format('Y-m-d') }}">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-sm btn-outline-secondary">

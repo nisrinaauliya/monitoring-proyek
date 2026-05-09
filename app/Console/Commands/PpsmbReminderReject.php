@@ -31,7 +31,7 @@ class PpsmbReminderReject extends Command
 
                 PpsmbHistory::create([
                     'ppsmb_id'  => $ppsmb->id,
-                    'pemeriksa' => 'System',
+                    'pemeriksa' => null,
                     'status'    => 'Rejected',
                     'catatan'   => 'PPSMB otomatis direject karena tidak direvisi dalam 30 hari',
                 ]);
@@ -46,7 +46,7 @@ class PpsmbReminderReject extends Command
 
                 PpsmbHistory::create([
                     'ppsmb_id'  => $ppsmb->id,
-                    'pemeriksa' => 'System',
+                    'pemeriksa' => null,
                     'status'    => 'Revisi User',
                     'catatan'   => "Reminder hari ke-{$hariKe}: PPSMB belum direvisi. Segera lakukan revisi sebelum hari ke-30 atau pengajuan akan otomatis direject.",
                 ]);

@@ -45,7 +45,7 @@
                     <tr>
                         <td>{{ $ppsmb->no_ppsmb ?? '-' }}</td>
                         <td>{{ $ppsmb->nama_project }}</td>
-                        <td>{{ $ppsmb->dept }}</td>
+                        <td>{{ $ppsmb->department->code }}</td>
                         <td>{{ $ppsmb->user->name }}</td>
                         <td>{{ $ppsmb->model_aplikasi }}</td>
                         <td>{{ $ppsmb->tahun }}</td>

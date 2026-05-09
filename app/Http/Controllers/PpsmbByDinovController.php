@@ -11,7 +11,11 @@ class PpsmbByDinovController extends Controller
 {
     public function index()
     {
-        $ppsmbs = Ppsmb::with('user')
+        $ppsmbs = Ppsmb::with([
+            'user',
+            'department',
+            'projectLeader'
+        ])
             ->where('model_aplikasi', 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot')
             ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit by User - Verifikasi CMD/Dinov'])
             ->latest()
@@ -22,7 +26,17 @@ class PpsmbByDinovController extends Controller
 
     public function show($id)
     {
-        $ppsmb = Ppsmb::with(['user', 'histories', 'detailPengerjaan'])->findOrFail($id);
+        $ppsmb = Ppsmb::with([
+            'user', 
+            'department',
+            'projectLeader',
+            'picBa',
+            'secondaryBa',
+            'developerUser',
+            'histories.pemeriksaUser', 
+            'detailPengerjaan'
+        ])->findOrFail($id);
+
         return view('ppsmbbydinov.show', compact('ppsmb'));
     }
 
@@ -36,8 +50,9 @@ class PpsmbByDinovController extends Controller
 
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => 'Antrian Analisa BA IT',
+            'progress'  => $ppsmb->progress,
             'catatan'   => null,
         ]);
 
@@ -59,8 +74,9 @@ class PpsmbByDinovController extends Controller
 
         PpsmbHistory::create([
             'ppsmb_id'  => $ppsmb->id,
-            'pemeriksa' => Auth::user()->name,
+            'pemeriksa' => Auth::id(),
             'status'    => 'Revisi User',
+            'progress'  => $ppsmb->progress,
             'catatan'   => $request->catatan,
         ]);
 

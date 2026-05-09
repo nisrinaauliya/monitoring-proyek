@@ -29,7 +29,7 @@
         <div class="row mb-4">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Departemen</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->dept }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->department->code }}" disabled>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">User</label>
@@ -90,22 +90,22 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Project Leader</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->project_leader ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->projectLeader->name ?? '-' }}" disabled>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">PIC BA</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->pic_ba ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->picBa->name ?? '-' }}" disabled>
             </div>
         </div>
 
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Secondary BA</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->secondary_ba ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->secondaryBa->name ?? '-' }}" disabled>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-muted" style="font-size:13px;">Developer</label>
-                <input type="text" class="form-control" value="{{ $ppsmb->developer ?? '-' }}" disabled>
+                <input type="text" class="form-control" value="{{ $ppsmb->developerUser->name ?? '-' }}" disabled>
             </div>
         </div>
 
@@ -184,7 +184,7 @@
                     @forelse($ppsmb->histories as $history)
                     <tr>
                         <td>{{ $history->created_at->format('d M Y H:i:s') }}</td>
-                        <td>{{ $history->pemeriksa }}</td>
+                        <td>{{ $history->pemeriksaUser->name ?? 'System' }}</td>
                         <td>{{ $history->status }}</td>
                         <td>{{ $history->catatan ?? '-' }}</td>
                     </tr>

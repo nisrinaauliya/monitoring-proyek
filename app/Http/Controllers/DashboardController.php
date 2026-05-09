@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Ppsmb;
 use App\Models\PpsmbHistory;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class DashboardController extends Controller
 
     private function userDashboard($user)
     {
-        $ppsmbs = Ppsmb::where('dept', $user->dept)->latest()->get();
+        $ppsmbs = Ppsmb::where('dept_id', $user->dept_id)->latest()->get();
 
         $total          = $ppsmbs->count();
         $totalAktif     = $ppsmbs->whereNotIn('status', ['Done (Live)', 'Rejected'])->count();
@@ -75,9 +76,9 @@ class DashboardController extends Controller
         }
 
         // sidebar: auto rejected
-        $autoRejected = Ppsmb::where('dept', $user->dept)
+        $autoRejected = Ppsmb::where('dept_id', $user->dept_id)
             ->where('status', 'Rejected')
-            ->whereHas('histories', fn($q) => $q->where('pemeriksa', 'System')->where('status', 'Rejected'))
+            ->whereHas('histories', fn($q) => $q->whereNull('pemeriksa')->where('status', 'Rejected'))
             ->latest('updated_at')
             ->take(5)
             ->get();
@@ -103,7 +104,7 @@ class DashboardController extends Controller
 
     private function verifikatorDashboard($user)
     {
-        $allPpsmbs = Ppsmb::with('user')->latest()->get();
+        $allPpsmbs = Ppsmb::with(['user', 'department'])->latest()->get();
 
         $activePpsmbs = $allPpsmbs
             ->whereNotIn('status', ['Done (Live)', 'Rejected'])
@@ -126,14 +127,14 @@ class DashboardController extends Controller
 
         // Matrix dept x status
         $statusList = array_keys(config('status.colors'));
-        $depts      = $allPpsmbs->pluck('dept')->unique()->sort()->values();
+        $depts      = $allPpsmbs->pluck('department.code')->unique()->sort()->values();
 
         $matrix = [];
         foreach ($depts as $dept) {
             $matrix[$dept] = [];
             foreach ($statusList as $status) {
                 $matrix[$dept][$status] = $allPpsmbs
-                    ->where('dept', $dept)
+                    ->filter(fn($p) => $p->department->code === $dept)
                     ->where('status', $status)
                     ->map(fn($p) => [
                         'id'             => $p->id,
@@ -234,30 +235,32 @@ class DashboardController extends Controller
             $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast()
         )->count();
 
+        $itDept = Department::where('code', 'IT')->first();
+
         // beban kerja per BA
-        $bebanBa = User::where('dept', 'IT')
+        $bebanBa = User::where('dept_id', $itDept->id)
             ->where('role', 'business_analyst')
             ->when($user->tim, fn($q) => $q->where('tim', $user->tim))
             ->get()
             ->map(fn($ba)   => [
                 'nama'      => $ba->name,
-                'analisa'   => $ppsmbs->whereIn('pic_ba', $ba->name)
+                'analisa'   => $ppsmbs->where('pic_ba', $ba->id)
                                     ->where('status', 'Analisa BA IT')->count(),
-                'total'     => $ppsmbs->where('pic_ba', $ba->name)->count(),
-                'secondary' => $ppsmbs->where('secondary_ba', $ba->name)->count(),
+                'total'     => $ppsmbs->where('pic_ba', $ba->id)->count(),
+                'secondary' => $ppsmbs->where('secondary_ba', $ba->id)->count(),
             ]);
 
         // beban kerja per developer
-        $bebanDev = User::where('dept', 'IT')
+        $bebanDev = User::where('dept_id', $itDept->id)
             ->where('role', 'developer')
             ->when($user->tim, fn($q) => $q->where('tim', $user->tim))
             ->get()
             ->map(fn($dev) => [
                 'nama'     => $dev->name,
-                'aktif'    => $ppsmbs->where('developer', $dev->name)
+                'aktif'    => $ppsmbs->where('developer', $dev->id)
                                     ->whereIn('status', ['Proses Development', 'UAT'])->count(),
-                'total'    => $ppsmbs->where('developer', $dev->name)->count(),
-                'progress' => $ppsmbs->where('developer', $dev->name)->avg('progress') ?? 0,
+                'total'    => $ppsmbs->where('developer', $dev->id)->count(),
+                'progress' => $ppsmbs->where('developer', $dev->id)->avg('progress') ?? 0,
             ]);
 
         // list project dengan info estimasi
@@ -286,8 +289,8 @@ class DashboardController extends Controller
                 'UAT',
             ])
             ->where(function ($q) use ($user) {
-                $q->where('pic_ba', $user->name)
-                ->orWhere('secondary_ba', $user->name);
+                $q->where('pic_ba', $user->id)
+                ->orWhere('secondary_ba', $user->id);
             })
             ->latest()
             ->get();
@@ -301,8 +304,8 @@ class DashboardController extends Controller
 
         $projectList = $ppsmbs->map(fn($p) => [
             'ppsmb'        => $p,
-            'is_primary'   => $p->pic_ba === $user->name,
-            'is_secondary' => $p->secondary_ba === $user->name,
+            'is_primary'   => $p->pic_ba === $user->id,
+            'is_secondary' => $p->secondary_ba === $user->id,
             'sisa_hari'    => $p->estimasi_selesai
                 ? (int) Carbon::now()->diffInDays(Carbon::parse($p->estimasi_selesai), false)
                 : null,
@@ -323,7 +326,7 @@ class DashboardController extends Controller
                 'UAT',
                 'Done (Live)',
             ])
-            ->where('developer', $user->name)
+            ->where('developer', $user->id)
             ->latest()
             ->get();
 
@@ -348,37 +351,46 @@ class DashboardController extends Controller
 
     private function adminDashboard()
     {
-        $allPpsmb = Ppsmb::with('user')->latest()->get();
+        $allPpsmb = Ppsmb::with(['user', 'picBa', 'secondaryBa', 'developerUser'])->latest()->get();
 
         $statusAktif = [
-            'Verifikasi CMD/DINOV', 'Edit by User', 'Revisi User',
-            'Antrian Analisa BA IT', 'Analisa BA IT',
-            'Antrian Development', 'Proses Development', 'UAT',
+            'Verifikasi CMD/Dinov',
+            'Edit by User - Verifikasi CMD/Dinov',
+            'Revisi User',
+            'Antrian Analisa BA IT',
+            'Analisa BA IT',
+            'Antrian Development',
+            'Proses Development',
+            'UAT',
         ];
 
         // Summary Cards
-        $totalProject   = $allPpsmb->count();
-        $totalAktif     = $allPpsmb->whereIn('status', $statusAktif)->count();
-        $totalSelesai   = $allPpsmb->where('status', 'Done (Live)')->count();
-        $totalRejected  = $allPpsmb->where('status', 'Rejected')->count();
+        $totalProject  = $allPpsmb->count();
+        $totalAktif    = $allPpsmb->whereIn('status', $statusAktif)->count();
+        $totalSelesai  = $allPpsmb->where('status', 'Done (Live)')->count();
+        $totalRejected = $allPpsmb->where('status', 'Rejected')->count();
 
         // Chart — distribusi per status
         $perStatus = $allPpsmb->groupBy('status')->map->count()->sortDesc();
 
         // Workload per Tim
         $perTim = $allPpsmb->whereIn('status', $statusAktif)
-            ->groupBy('tim')->map->count()->sortDesc();
+            ->groupBy(fn($p) => match($p->model_aplikasi) {
+                'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot' => 'Eksternal',
+                default => 'Internal',
+            })->map->count()->sortDesc();
 
         // Workload per BA
         $perBa = $allPpsmb->whereIn('status', $statusAktif)
             ->whereNotNull('pic_ba')
-            ->groupBy('pic_ba')->map->count()->sortDesc();
+            ->groupBy(fn($p) => $p->picBa->name ?? '—')
+            ->map->count()->sortDesc();
 
         // Workload per Developer
         $perDeveloper = $allPpsmb->whereIn('status', $statusAktif)
             ->whereNotNull('developer')
-            ->where('developer', '!=', '')
-            ->groupBy('developer')->map->count()->sortDesc();
+            ->groupBy(fn($p) => $p->developerUser->name ?? '—')
+            ->map->count()->sortDesc();
 
         // Project Telat
         $projectTelat = $allPpsmb->whereIn('status', $statusAktif)
@@ -392,9 +404,62 @@ class DashboardController extends Controller
             ->take(10)
             ->get();
 
+        // Chart trend — project masuk vs selesai 6 bulan terakhir
+        $trendLabels  = collect();
+        $trendMasuk   = collect();
+        $trendSelesai = collect();
+
+        for ($i = 5; $i >= 0; $i--) {
+            $bulan = Carbon::now()->subMonths($i);
+            $trendLabels->push($bulan->translatedFormat('M Y'));
+            $trendMasuk->push(
+                Ppsmb::whereYear('created_at', $bulan->year)
+                    ->whereMonth('created_at', $bulan->month)
+                    ->count()
+            );
+            $trendSelesai->push(
+                Ppsmb::where('status', 'Done (Live)')
+                    ->whereYear('updated_at', $bulan->year)
+                    ->whereMonth('updated_at', $bulan->month)
+                    ->count()
+            );
+        }
+
+        // Workload BA detail
+        $perBaDetail = $allPpsmb->whereIn('status', $statusAktif)
+            ->whereNotNull('pic_ba')
+            ->groupBy(fn($p) => $p->picBa->name ?? '—')
+            ->map(fn($projects) => [
+                'count'    => $projects->count(),
+                'projects' => $projects->map(fn($p) => [
+                    'id'           => $p->id,
+                    'nama_project' => $p->nama_project,
+                    'status'       => $p->status,
+                    'color'        => config('status.colors')[$p->status] ?? '#6c757d',
+                ])->values(),
+            ])
+            ->sortByDesc('count');
+
+        // Workload Developer detail
+        $perDeveloperDetail = $allPpsmb->whereIn('status', $statusAktif)
+            ->whereNotNull('developer')
+            ->groupBy(fn($p) => $p->developerUser->name ?? '—')
+            ->map(fn($projects) => [
+                'count'    => $projects->count(),
+                'projects' => $projects->map(fn($p) => [
+                    'id'           => $p->id,
+                    'nama_project' => $p->nama_project,
+                    'status'       => $p->status,
+                    'color'        => config('status.colors')[$p->status] ?? '#6c757d',
+                ])->values(),
+            ])
+            ->sortByDesc('count');
+
         return view('dashboard.admin', compact(
-            'totalProject', 'totalAktif', 'totalSelesai', 'totalRejected',
+            'allPpsmb', 'totalProject', 'totalAktif', 'totalSelesai', 'totalRejected',
             'perStatus', 'perTim', 'perBa', 'perDeveloper',
+            'perBaDetail', 'perDeveloperDetail',
+            'trendLabels', 'trendMasuk', 'trendSelesai',
             'projectTelat', 'aktivitasTerbaru',
         ));
     }

@@ -15,7 +15,7 @@ class CheckDept
             return $next($request);
         }
 
-        if (!in_array(auth()->user()->dept, $depts)) {
+        if (!in_array(auth()->user()->department->code, $depts)) {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
 

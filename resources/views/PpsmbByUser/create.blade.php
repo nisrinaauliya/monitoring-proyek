@@ -21,7 +21,7 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Departemen</label>
-                    <input type="text" class="form-control" value="{{ Auth::user()->dept }}" disabled>
+                    <input type="text" class="form-control" value="{{ Auth::user()->department->code }}" disabled>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">User</label>
@@ -35,7 +35,7 @@
             </h6>
             <div class="row mb-3">
                 <div class="col-md-6">
-                    @if(Auth::user()->dept === 'IT' && Auth::user()->role !== 'admin')
+                    @if(Auth::user()->department->code === 'IT' && Auth::user()->role !== 'admin')
                         <input type="hidden" name="model_aplikasi" value="Improvement IT System">
                         <label class="form-label">Model Aplikasi</label>
                         <input type="text" class="form-control" value="Improvement IT System" disabled>
@@ -95,15 +95,15 @@
                     <label class="form-label">Jenis Permintaan <span class="text-danger">*</span></label>
                     <div class="d-flex gap-3 mt-1">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="jenis_permintaan[]" value="Sistem Baru" {{ in_array('Sistem Baru', old('jenis_permintaan', [])) ? 'checked' : '' }}>
+                            <input class="form-check-input" type="radio" name="jenis_permintaan" value="Sistem Baru" {{ old('jenis_permintaan') == 'Sistem Baru' ? 'checked' : '' }}>
                             <label class="form-check-label">Sistem Baru</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="jenis_permintaan[]" value="Modul Baru" {{ in_array('Modul Baru', old('jenis_permintaan', [])) ? 'checked' : '' }}>
+                            <input class="form-check-input" type="radio" name="jenis_permintaan" value="Modul Baru" {{ old('jenis_permintaan') == 'Modul Baru' ? 'checked' : '' }}>
                             <label class="form-check-label">Modul Baru</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="jenis_permintaan[]" value="Modifikasi Baru" {{ in_array('Modifikasi Baru', old('jenis_permintaan', [])) ? 'checked' : '' }}>
+                            <input class="form-check-input" type="radio" name="jenis_permintaan" value="Modifikasi Baru" {{old('jenis_permintaan') == 'Modifikasi Baru' ? 'checked' : '' }}>
                             <label class="form-check-label">Modifikasi Baru</label>
                         </div>
                     </div>

@@ -371,9 +371,9 @@ $summaryCards = [
         'no_ppsmb'         => $pl['ppsmb']->no_ppsmb ?? '—',
         'nama_project'     => $pl['ppsmb']->nama_project,
         'status'           => $pl['ppsmb']->status,
-        'pic_ba'           => $pl['ppsmb']->pic_ba ?? '—',
-        'secondary_ba'     => $pl['ppsmb']->secondary_ba ?? '—',
-        'developer'        => $pl['ppsmb']->developer ?? '—',
+        'pic_ba'           => $pl['ppsmb']->picBa->name ?? '—',
+        'secondary_ba'     => $pl['ppsmb']->secondaryBa->name ?? '—',
+        'developer'        => $pl['ppsmb']->developerUser->name ?? '—',
         'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
             ? \Carbon\Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
             : '—',

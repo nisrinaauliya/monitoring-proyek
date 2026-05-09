@@ -5,13 +5,11 @@ use Illuminate\Http\Request;
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PpsmbByUserController;
 use App\Http\Controllers\PpsmbByCmdController;
 use App\Http\Controllers\PpsmbByDinovController;
 use App\Http\Controllers\PpsmbByItController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\InputPriorityController;
 use App\Http\Controllers\ResultController;
 
 Route::get('/', function () {
@@ -51,7 +49,7 @@ Route::middleware('auth')->group(function () {
             ->name('ppsmbbycmd.revisi');
     });
 
-    Route::middleware(['auth', 'checkdept:DINOV'])->group(function () {
+    Route::middleware(['auth', 'checkdept:DIN'])->group(function () {
         Route::get('/ppsmbbydinov', [PpsmbByDinovController::class, 'index'])
             ->name('ppsmbbydinov');
         Route::get('/ppsmbbydinov/{id}', [PpsmbByDinovController::class, 'show'])
@@ -83,7 +81,7 @@ Route::middleware('auth')->group(function () {
             ->name('ppsmbbyit.uat');
     });
 
-    Route::middleware(['auth', 'checkdept:CMD, DINOV, IT'])->group(function () {
+    Route::middleware(['auth', 'checkdept:CMD,DIN,IT'])->group(function () {
         Route::get('/report', [ReportController::class, 'index'])
             ->name('report');
 

@@ -38,7 +38,7 @@
                     <span class="sidebar-text ms-3" style="transition: opacity 0.3s ease, max-width 0.4s ease; opacity: 1; max-width: 200px; overflow: hidden; white-space: nowrap; display: inline-block;">PPSMB by User</span>
                 </a>
 
-               @if(Auth::user()->role === 'admin' || Auth::user()->dept === 'CMD')
+               @if(Auth::user()->role === 'admin' || Auth::user()->department->code === 'CMD')
                 <a href="{{ route('ppsmbbycmd') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-file-earmark-check fs-6"></i>
@@ -46,7 +46,7 @@
                 </a>
                 @endif
 
-                @if(Auth::user()->role === 'admin' || Auth::user()->dept === 'DINOV')
+                @if(Auth::user()->role === 'admin' || Auth::user()->department->code === 'DIN')
                 <a href="{{ route('ppsmbbydinov') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-file-earmark-check fs-6"></i>
@@ -54,7 +54,7 @@
                 </a>
                 @endif
 
-                @if(Auth::user()->role === 'admin' || Auth::user()->dept === 'IT')
+                @if(Auth::user()->role === 'admin' || Auth::user()->department->code === 'IT')
                 <a href="{{ route('ppsmbbyit') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-file-earmark-check fs-6"></i>
@@ -62,7 +62,7 @@
                 </a>
                 @endif
 
-                @if(Auth::user()->role === 'admin' || in_array(Auth::user()->dept, ['CMD', 'DINOV', 'IT']))
+                @if(Auth::user()->role === 'admin' || in_array(Auth::user()->department->code, ['CMD', 'DIN', 'IT']))
                 <a href="{{ route('report') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-card-heading fs-6"></i>
@@ -121,7 +121,7 @@
                                 </div>
                                 <div>
                                     <div class="fw-semibold" style="font-size: 14px;">{{ Auth::user()->name }}</div>
-                                    <div class="text-muted" style="font-size: 12px;">{{ Auth::user()->dept }}</div>
+                                    <div class="text-muted" style="font-size: 12px;">{{ Auth::user()->department->code }}</div>
                                 </div>
                             </li>
                             <li><hr class="dropdown-divider"></li>

@@ -12,10 +12,11 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
-        'username',
         'email',
-        'dept',
+        'username',
+        'dept_id',
         'role',
+        'tim',
         'password',
     ];
 
@@ -32,8 +33,39 @@ class User extends Authenticatable
         ];
     }
 
+    public function department()
+    {
+        return $this->belongsTo(Department::class, 'dept_id');
+    }
+
     public function ppsmbs()
     {
-        return $this->hasMany(Ppsmb::class);
+        return $this->hasMany(Ppsmb::class, 'user_id');
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(PpsmbHistory::class, 'pemeriksa');
+    }
+
+    //Role Relations
+    public function projectLeaderPpsmbs()
+    {
+        return $this->hasMany(Ppsmb::class, 'project_leader');
+    }
+
+    public function primaryBaPpsmbs()
+    {
+        return $this->hasMany(Ppsmb::class, 'pic_ba');
+    }
+
+    public function secondaryBaPpsmbs()
+    {
+        return $this->hasMany(Ppsmb::class, 'secondary_ba');
+    }
+
+    public function developerPpsmbs()
+    {
+        return $this->hasMany(Ppsmb::class, 'developer');
     }
 }

@@ -26,7 +26,7 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Departemen</label>
-                    <input type="text" class="form-control" value="{{ $ppsmb->dept }}" disabled>
+                    <input type="text" class="form-control" value="{{ $ppsmb->department->code }}" disabled>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">User</label>
@@ -67,7 +67,7 @@
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Jenis Permintaan</label>
-                    <input type="hidden" name="jenis_permintaan[]" value="{{ $ppsmb->jenis_permintaan }}">
+                    <input type="hidden" name="jenis_permintaan" value="{{ $ppsmb->jenis_permintaan }}">
                     <input type="text" class="form-control" value="{{ $ppsmb->jenis_permintaan }}" disabled>
                 </div>
                 <div class="col-md-6">
