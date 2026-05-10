@@ -84,6 +84,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['auth', 'checkdept:CMD,DIN,IT'])->group(function () {
         Route::get('/report', [ReportController::class, 'index'])
             ->name('report');
+        Route::get('/report/export', [ReportController::class, 'export'])
+            ->name('report.export');
 
         Route::get('/result', [ResultController::class, 'index'])
             ->name('result');
