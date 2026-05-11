@@ -68,12 +68,6 @@
                     <i class="bi bi-card-heading fs-6"></i>
                     <span class="sidebar-text ms-3" style="transition: opacity 0.3s ease, max-width 0.4s ease; opacity: 1; max-width: 200px; overflow: hidden; white-space: nowrap; display: inline-block;">Report</span>
                 </a>
-                
-                <a href="{{ route('result') }}" 
-                    class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
-                    <i class="bi bi-printer fs-6"></i>
-                    <span class="sidebar-text ms-3" style="transition: opacity 0.3s ease, max-width 0.4s ease; opacity: 1; max-width: 200px; overflow: hidden; white-space: nowrap; display: inline-block;">Result</span>
-                </a>
                 @endif
                                    
             </div>

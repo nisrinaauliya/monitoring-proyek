@@ -86,9 +86,6 @@ Route::middleware('auth')->group(function () {
             ->name('report');
         Route::get('/report/export', [ReportController::class, 'export'])
             ->name('report.export');
-
-        Route::get('/result', [ResultController::class, 'index'])
-            ->name('result');
     });
 });
 
