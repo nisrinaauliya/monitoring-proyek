@@ -9,25 +9,45 @@ use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class ReportMatrixSheet implements FromArray, WithTitle, WithStyles
 {
-    private array $data = [];
     private array $statusList;
+    private array $excelColumns; // kolom yang ditampilkan di Excel (sudah digabung)
     private int $totalRows;
+
+    // Status yang digabung ke satu kolom di Excel
+    const MERGED_VERIFIKASI = [
+        'Verifikasi CMD/Dinov',
+        'Edit by User - Verifikasi CMD/Dinov',
+    ];
+    const MERGED_VERIFIKASI_LABEL = 'Verifikasi CMD/Dinov (incl. Edit by User)';
 
     public function __construct(
         private int $tahun,
         private int $bulan,
     ) {
         $this->statusList = array_keys(config('status.colors'));
+
+        // Build excelColumns — gabung Verifikasi jadi satu
+        $columns = [];
+        $verifikasiAdded = false;
+        foreach ($this->statusList as $status) {
+            if (in_array($status, self::MERGED_VERIFIKASI)) {
+                if (!$verifikasiAdded) {
+                    $columns[] = self::MERGED_VERIFIKASI_LABEL;
+                    $verifikasiAdded = true;
+                }
+            } else {
+                $columns[] = $status;
+            }
+        }
+        $this->excelColumns = $columns;
     }
 
     public function title(): string
@@ -38,132 +58,184 @@ class ReportMatrixSheet implements FromArray, WithTitle, WithStyles
     public function array(): array
     {
         $cutoff      = Carbon::create($this->tahun, $this->bulan)->endOfMonth();
-        $bulanLabel  = Carbon::create($this->tahun, $this->bulan)->translatedFormat('M Y');
-
         $ppsmbs      = Ppsmb::with('department')
             ->whereYear('created_at', $this->tahun)
             ->where('created_at', '<=', $cutoff)
             ->get();
-
         $departments = Department::orderBy('code')->get();
 
-        // Header row 1
-        $header1 = ['Dept./Div.', 'Pengajuan PPSMB'];
-        foreach ($this->statusList as $status) {
-            $header1[] = $status;
-        }
-        $rows[] = $header1;
+        $header = ['Dept', 'Pengajuan PPSMB', ...$this->excelColumns];
+        $rows[] = $header;
 
-        // Data rows
         $totalPengajuan = 0;
-        $totalPerStatus = array_fill_keys($this->statusList, 0);
+        $totalPerCol    = array_fill_keys($this->excelColumns, 0);
 
         foreach ($departments as $dept) {
             $deptPpsmbs = $ppsmbs->where('dept_id', $dept->id);
             $pengajuan  = $deptPpsmbs->count();
-
             if ($pengajuan === 0) continue;
 
             $totalPengajuan += $pengajuan;
             $row = [$dept->code, $pengajuan];
 
-            foreach ($this->statusList as $status) {
-                $count = $deptPpsmbs->filter(function ($p) use ($status, $cutoff) {
+            foreach ($this->excelColumns as $col) {
+                // Tentukan status mana yang dihitung untuk kolom ini
+                $statuses = $col === self::MERGED_VERIFIKASI_LABEL
+                    ? self::MERGED_VERIFIKASI
+                    : [$col];
+
+                $count = $deptPpsmbs->filter(function ($p) use ($statuses, $cutoff) {
                     $lastHistory = PpsmbHistory::where('ppsmb_id', $p->id)
                         ->where('created_at', '<=', $cutoff)
-                        ->latest('created_at')
-                        ->first();
-                    return $lastHistory && $lastHistory->status === $status;
+                        ->latest('created_at')->first();
+                    return $lastHistory && in_array($lastHistory->status, $statuses);
                 })->count();
 
                 $row[] = $count ?: '';
-                $totalPerStatus[$status] += $count;
+                $totalPerCol[$col] += $count;
             }
 
             $rows[] = $row;
         }
 
-        // Total row
         $totalRow = ['Total', $totalPengajuan];
-        foreach ($this->statusList as $status) {
-            $totalRow[] = $totalPerStatus[$status] ?: '';
+        foreach ($this->excelColumns as $col) {
+            $totalRow[] = $totalPerCol[$col] ?: '';
         }
         $rows[] = $totalRow;
 
         $this->totalRows = count($rows);
-        $this->data = $rows;
-
         return $rows;
     }
 
     public function styles(Worksheet $sheet): void
     {
-        $lastCol  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($this->statusList) + 2);
-        $lastRow  = $this->totalRows;
-        $totalRow = $lastRow + 1; // +1 karena header row 1
+        $colCount     = count($this->excelColumns);
+        $lastColIndex = $colCount + 2;
+        $lastCol      = Coordinate::stringFromColumnIndex($lastColIndex);
 
-        // Title
-        $sheet->insertNewRowBefore(1, 2);
+        $sheet->insertNewRowBefore(1, 3);
+
+        // ── ROW 1: Title ──────────────────────────────────────
         $sheet->mergeCells("A1:{$lastCol}1");
-        $sheet->setCellValue('A1', "PPSMB Progress – YTD " . Carbon::create($this->tahun, $this->bulan)->translatedFormat('M Y'));
-        $sheet->getStyle('A1')->applyFromArray([
-            'font'      => ['bold' => true, 'size' => 16],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
-        ]);
-        $sheet->getRowDimension(1)->setRowHeight(30);
+        $sheet->setCellValue('A1', 'PPSMB Progress – YTD ' . Carbon::create($this->tahun, $this->bulan)->translatedFormat('M Y'));
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(18);
+        $sheet->getStyle('A1')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(36);
 
-        // Header row style (row 3 setelah insert)
-        $headerRow = 3;
-        $sheet->getStyle("A{$headerRow}:{$lastCol}{$headerRow}")->applyFromArray([
-            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
-        ]);
-        $sheet->getRowDimension($headerRow)->setRowHeight(40);
+        // ── ROW 2: Spacer ─────────────────────────────────────
+        $sheet->getRowDimension(2)->setRowHeight(6);
 
-        // Data rows style
-        $dataStart = $headerRow + 1;
-        $dataEnd   = $dataStart + $lastRow - 2; // -1 header, -1 total
+        // ── ROW 3: Header grup ────────────────────────────────
+        $sheet->mergeCells('A3:A4');
+        $sheet->setCellValue('A3', 'Dept./Div.');
+
+        $sheet->mergeCells('B3:B4');
+        $sheet->setCellValue('B3', 'Pengajuan PPSMB');
+
+        $progressStartCol = Coordinate::stringFromColumnIndex(3);
+        $sheet->mergeCells("{$progressStartCol}3:{$lastCol}3");
+        $sheet->setCellValue("{$progressStartCol}3", 'Progress PPSMB');
+
+        $sheet->getStyle("A3:{$lastCol}3")
+            ->getFill()->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB(ReportColors::HEADER);
+        $sheet->getStyle("A3:{$lastCol}3")
+            ->getFont()->setBold(true)->setSize(11)
+            ->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle("A3:{$lastCol}3")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension(3)->setRowHeight(28);
+
+        // ── ROW 4: Header kolom ───────────────────────────────
+        foreach ($this->excelColumns as $i => $col) {
+            $cellCol = Coordinate::stringFromColumnIndex($i + 3);
+            $color   = $col === self::MERGED_VERIFIKASI_LABEL
+                ? ReportColors::status('Verifikasi CMD/Dinov')
+                : ReportColors::status($col);
+
+            $sheet->setCellValue("{$cellCol}4", $col);
+            $sheet->getStyle("{$cellCol}4")
+                ->getFill()->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB($color);
+            $sheet->getStyle("{$cellCol}4")
+                ->getFont()->setBold(true)->setSize(10)
+                ->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle("{$cellCol}4")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER)
+                ->setWrapText(true);
+        }
+
+        foreach (['A4', 'B4'] as $cell) {
+            $sheet->getStyle($cell)
+                ->getFill()->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB(ReportColors::HEADER);
+            $sheet->getStyle($cell)
+                ->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle($cell)
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+        }
+        $sheet->getRowDimension(4)->setRowHeight(40);
+
+        // ── DATA ROWS ─────────────────────────────────────────
+        // totalRows = 1 header + N data dept + 1 total = N+2
+        // insert 3 rows di atas, header array jadi row 4
+        // data mulai row 5, sampai row (3 + totalRows - 1) = totalRows + 2
+        $dataStart   = 5;
+        $totalRowNum = 3 + $this->totalRows; // row total (baris terakhir array)
+        $dataEnd     = $totalRowNum - 1;
 
         for ($r = $dataStart; $r <= $dataEnd; $r++) {
-            $sheet->getStyle("A{$r}:{$lastCol}{$r}")->applyFromArray([
-                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-            ]);
-            // Dept code kolom A — left align
-            $sheet->getStyle("A{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getStyle("A{$r}:{$lastCol}{$r}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle("A{$r}")
+                ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getRowDimension($r)->setRowHeight(20);
 
-            // Alternating row color
             if (($r - $dataStart) % 2 === 0) {
-                $sheet->getStyle("A{$r}:{$lastCol}{$r}")->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('EBF3FB');
+                $sheet->getStyle("A{$r}:{$lastCol}{$r}")
+                    ->getFill()->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('F2F7FC');
             }
         }
 
-        // Total row
-        $totalRowNum = $dataEnd + 1;
-        $sheet->getStyle("A{$totalRowNum}:{$lastCol}{$totalRowNum}")->applyFromArray([
-            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-        ]);
+        // ── TOTAL ROW ─────────────────────────────────────────
+        $sheet->getStyle("A{$totalRowNum}:{$lastCol}{$totalRowNum}")
+            ->getFill()->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB(ReportColors::HEADER);
+        $sheet->getStyle("A{$totalRowNum}:{$lastCol}{$totalRowNum}")
+            ->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle("A{$totalRowNum}:{$lastCol}{$totalRowNum}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle("A{$totalRowNum}")
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getRowDimension($totalRowNum)->setRowHeight(22);
 
-        // Border semua
-        $sheet->getStyle("A{$headerRow}:{$lastCol}{$totalRowNum}")->applyFromArray([
+        // ── BORDER ────────────────────────────────────────────
+        $sheet->getStyle("A3:{$lastCol}{$totalRowNum}")->applyFromArray([
             'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color'       => ['rgb' => 'B0C4DE'],
-                ],
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'B0C4DE']],
             ],
         ]);
 
-        // Column widths
-        $sheet->getColumnDimension('A')->setWidth(12);
-        $sheet->getColumnDimension('B')->setWidth(14);
-        for ($c = 3; $c <= count($this->statusList) + 2; $c++) {
-            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
-            $sheet->getColumnDimension($col)->setWidth(16);
+        // ── COLUMN WIDTHS ─────────────────────────────────────
+        $sheet->getColumnDimension('A')->setWidth(14);
+        $sheet->getColumnDimension('B')->setWidth(16);
+        for ($c = 3; $c <= $lastColIndex; $c++) {
+            $col = Coordinate::stringFromColumnIndex($c);
+            $sheet->getColumnDimension($col)->setWidth(22);
         }
     }
 }
