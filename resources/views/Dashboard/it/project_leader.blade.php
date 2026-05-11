@@ -1,5 +1,4 @@
 @extends('layouts.app')
-@php use Carbon\Carbon; @endphp
 
 @section('title', 'Dashboard - Sistem Helpdesk')
 @section('page_title', 'Dashboard')
@@ -7,16 +6,6 @@
 @section('content')
 
 {{-- Summary Cards --}}
-@php
-$summaryCards = [
-    ['label'=>'Project Aktif',        'val'=>$totalAktif,     'color'=>'#4b4d50', 'key'=>'all',             'sub'=>'Project sedang berjalan'],
-    ['label'=>'Antrian Analisa BA IT',    'val'=>$antrianAnalisa, 'color'=>'#9cc0f1', 'key'=>'antrian_analisa', 'sub'=>'Menunggu BA analisa'],
-    ['label'=>'Analisa BA IT',         'val'=>$analisaBa,      'color'=>'#4691ec', 'key'=>'analisa_ba',      'sub'=>'Sedang dianalisa BA'],
-    ['label'=>'Antrian Development',        'val'=>$antrianDev,     'color'=>'#0b57b3', 'key'=>'antrian_dev',     'sub'=>'Menunggu developer'],
-    ['label'=>'Proses Development', 'val'=>$prosesDev,      'color'=>'#052e70', 'key'=>'proses_dev',      'sub'=>'Sedang dikerjakan'],
-    ['label'=>'UAT',                'val'=>$uat,            'color'=>'#F97316', 'key'=>'uat',             'sub'=>'Sedang pengujian'],
-];
-@endphp
 <div class="row g-3 mb-4">
     @foreach($summaryCards as $sc)
     <div class="col-6 col-sm-4 col-md-2">
@@ -102,8 +91,8 @@ $summaryCards = [
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
+                            @php $maxBa = $bebanBa->max('total') ?: 1; @endphp
                             <div class="progress rounded-pill flex-grow-1" style="height:6px;background:#e9ecef;">
-                                @php $maxBa = $bebanBa->max('total') ?: 1; @endphp
                                 <div class="progress-bar rounded-pill"
                                      style="width:{{ round(($ba['total'] / $maxBa) * 100) }}%;background:#4691ec;"></div>
                             </div>
@@ -138,8 +127,8 @@ $summaryCards = [
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
+                            @php $maxDev = $bebanDev->max('total') ?: 1; @endphp
                             <div class="progress rounded-pill flex-grow-1" style="height:6px;background:#e9ecef;">
-                                @php $maxDev = $bebanDev->max('total') ?: 1; @endphp
                                 <div class="progress-bar rounded-pill"
                                      style="width:{{ round(($dev['total'] / $maxDev) * 100) }}%;background:#052e70;"></div>
                             </div>
@@ -160,7 +149,7 @@ $summaryCards = [
     </div>
 </div>
 
-{{-- Detail Beban (muncul saat klik BA/Dev) --}}
+{{-- Detail Beban --}}
 <div class="card border-0 shadow-sm mb-4" id="bebanDetailCard" style="display:none;">
     <div class="card-header bg-white border-0 px-3 pt-3 pb-2">
         <div class="d-flex align-items-center justify-content-between">
@@ -195,9 +184,8 @@ $summaryCards = [
     </div>
 </div>
 
-{{-- Chart Project Selesai & Rejected per Bulan --}}
+{{-- Chart --}}
 <div class="row g-3 mb-4">
-    {{-- Chart Selesai --}}
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body p-3">
@@ -216,7 +204,6 @@ $summaryCards = [
             </div>
         </div>
     </div>
-    {{-- Chart Rejected --}}
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body p-3">
@@ -240,43 +227,17 @@ $summaryCards = [
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function () {
 
-    // ── CHART SELESAI & REJECTED PER BULAN ───────────────
-    @php
-    $chartSelesai = \App\Models\Ppsmb::where('status', 'Done (Live)')
-        ->whereNotNull('updated_at')
-        ->when($user->tim === 'internal', fn($q) => $q->whereIn('model_aplikasi', ['Aplikasi Internal MD', 'Improvement IT System']))
-        ->when($user->tim === 'eksternal', fn($q) => $q->where('model_aplikasi', 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'))
-        ->get()
-        ->groupBy(fn($p) => \Carbon\Carbon::parse($p->updated_at)->format('Y-m'))
-        ->map(fn($g, $bulan) => [
-            'bulan'  => \Carbon\Carbon::createFromFormat('Y-m', $bulan)->translatedFormat('M Y'),
-            'key'    => $bulan,
-            'jumlah' => $g->count(),
-        ])
-        ->sortKeys()
-        ->values();
-
-    $chartRejected = \App\Models\Ppsmb::where('status', 'Rejected')
-        ->whereNotNull('updated_at')
-        ->when($user->tim === 'internal', fn($q) => $q->whereIn('model_aplikasi', ['Aplikasi Internal MD', 'Improvement IT System']))
-        ->when($user->tim === 'eksternal', fn($q) => $q->where('model_aplikasi', 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'))
-        ->get()
-        ->groupBy(fn($p) => \Carbon\Carbon::parse($p->updated_at)->format('Y-m'))
-        ->map(fn($g, $bulan) => [
-            'bulan'  => \Carbon\Carbon::createFromFormat('Y-m', $bulan)->translatedFormat('M Y'),
-            'key'    => $bulan,
-            'jumlah' => $g->count(),
-        ])
-        ->sortKeys()
-        ->values();
-    @endphp
-
     const rawChartSelesai  = @json($chartSelesai);
     const rawChartRejected = @json($chartRejected);
+    const allProjects      = @json($projectJson);
+    const baseUrl          = '{{ url("/ppsmbbyit") }}';
+    const perPage          = 5;
 
+    // ── CHART ─────────────────────────────────────────────
     function getSlice(data, range) {
         if (range === 'all') return data;
         return data.slice(-parseInt(range));
@@ -365,30 +326,7 @@ $summaryCards = [
         });
     });
 
-    @php
-    $projectJson = $projectList->map(fn($pl) => [
-        'id'               => $pl['ppsmb']->id,
-        'no_ppsmb'         => $pl['ppsmb']->no_ppsmb ?? '—',
-        'nama_project'     => $pl['ppsmb']->nama_project,
-        'status'           => $pl['ppsmb']->status,
-        'pic_ba'           => $pl['ppsmb']->picBa->name ?? '—',
-        'secondary_ba'     => $pl['ppsmb']->secondaryBa->name ?? '—',
-        'developer'        => $pl['ppsmb']->developerUser->name ?? '—',
-        'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
-            ? \Carbon\Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
-            : '—',
-        'sisa_hari'        => $pl['sisa_hari'],
-        'telat'            => $pl['telat'],
-        'progress'         => $pl['ppsmb']->progress,
-        'color'            => config('status.colors')[$pl['ppsmb']->status] ?? '#6c757d',
-    ])->values();
-    @endphp
-
-    const allProjects  = @json($projectJson);
-    const statusColors = @json(config('status.colors'));
-    const perPage      = 5;
-
-    // ── HELPER: render pagination ──────────────────────────
+    // ── HELPER: pagination ────────────────────────────────
     function renderPagination(list, page, infoEl, paginationEl, onPage) {
         const total = list.length;
         const pages = Math.max(1, Math.ceil(total / perPage));
@@ -412,7 +350,7 @@ $summaryCards = [
         return list.slice(start, end);
     }
 
-    // ── HELPER: render row project (untuk summary card) ────
+    // ── HELPER: render row project ────────────────────────
     function renderProjectRow(p) {
         const sisaText = p.sisa_hari === null ? '—'
             : p.telat ? `<span class="fw-bold text-danger">${Math.abs(p.sisa_hari)} hari telat</span>`
@@ -445,17 +383,13 @@ $summaryCards = [
                     </div>
                 </td>
                 <td class="py-3 pe-3">
-                    <a href="/ppsmbbyit/${p.id}"
-                       class="btn btn-sm btn-info mt-1"
-                       style="font-size:14px;">
-                        Rincian
-                    </a>
+                    <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">Rincian</a>
                 </td>
             </tr>
         `;
     }
 
-    // ── HELPER: render row beban ───────────────────────────
+    // ── HELPER: render row beban ──────────────────────────
     function renderBebanRow(p) {
         return `
             <tr class="border-top ${p.telat ? 'table-danger' : ''}">
@@ -478,11 +412,7 @@ $summaryCards = [
                 </td>
                 <td class="py-3" style="font-size:14px;">${p.estimasi_selesai}</td>
                 <td class="py-3 pe-3">
-                    <a href="/ppsmbbyit/${p.id}"
-                       class="btn btn-sm btn-info mt-1"
-                       style="font-size:14px;">
-                        Rincian
-                    </a>
+                    <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">Rincian</a>
                 </td>
             </tr>
         `;

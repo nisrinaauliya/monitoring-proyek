@@ -1,5 +1,4 @@
 @extends('layouts.app')
-@php use Carbon\Carbon; @endphp
 
 @section('title', 'Dashboard - Sistem Helpdesk')
 @section('page_title', 'Dashboard')
@@ -7,14 +6,6 @@
 @section('content')
 
 {{-- Summary Cards --}}
-@php
-$summaryCards = [
-    ['label'=>'Total Project',  'val'=>$totalProject,  'color'=>'#0d6efd', 'key'=>'all',      'sub'=>'Semua project masuk'],
-    ['label'=>'Project Aktif',  'val'=>$totalAktif,    'color'=>'#f59e0b', 'key'=>'aktif',    'sub'=>'Sedang berjalan'],
-    ['label'=>'Done (Live)',    'val'=>$totalSelesai,  'color'=>'#198754', 'key'=>'done',     'sub'=>'Project selesai'],
-    ['label'=>'Rejected',       'val'=>$totalRejected, 'color'=>'#dc3545', 'key'=>'rejected', 'sub'=>'Project ditolak'],
-];
-@endphp
 <div class="row g-3 mb-4">
     @foreach($summaryCards as $sc)
     <div class="col-6 col-sm-3">
@@ -93,8 +84,9 @@ $summaryCards = [
                 <div class="fw-semibold mb-1" style="font-size:16px;">Workload per Tim</div>
                 <div class="text-muted mb-3" style="font-size:14px;">Klik tim untuk lihat detail project</div>
                 @if($perTim->count() > 0)
+                    @php $totalTim = $perTim->sum(); @endphp
                     @foreach($perTim as $tim => $count)
-                    @php $pct = $perTim->sum() > 0 ? round($count / $perTim->sum() * 100) : 0; @endphp
+                    @php $pct = $totalTim > 0 ? round($count / $totalTim * 100) : 0; @endphp
                     <div class="mb-3 admin-tim-row" role="button" data-tim="{{ $tim }}"
                          style="cursor:pointer;padding:8px;border-radius:8px;transition:background .15s;">
                         <div class="d-flex justify-content-between mb-1">
@@ -169,8 +161,9 @@ $summaryCards = [
                 <div class="fw-semibold mb-1" style="font-size:16px;">Workload BA</div>
                 <div class="text-muted mb-3" style="font-size:14px;">Klik nama BA untuk lihat detail project</div>
                 @if($perBaDetail->count() > 0)
+                    @php $totalBa = $perBaDetail->sum('count'); @endphp
                     @foreach($perBaDetail as $ba => $data)
-                    @php $pct = $perBaDetail->sum('count') > 0 ? round($data['count'] / $perBaDetail->sum('count') * 100) : 0; @endphp
+                    @php $pct = $totalBa > 0 ? round($data['count'] / $totalBa * 100) : 0; @endphp
                     <div class="mb-3 pb-3 border-bottom admin-ba-row" role="button"
                          data-ba="{{ $ba }}"
                          style="cursor:pointer;padding:8px;border-radius:8px;transition:background .15s;">
@@ -200,8 +193,9 @@ $summaryCards = [
                 <div class="fw-semibold mb-1" style="font-size:16px;">Workload Developer</div>
                 <div class="text-muted mb-3" style="font-size:14px;">Klik nama Developer untuk lihat detail project</div>
                 @if($perDeveloperDetail->count() > 0)
+                    @php $totalDev = $perDeveloperDetail->sum('count'); @endphp
                     @foreach($perDeveloperDetail as $dev => $data)
-                    @php $pct = $perDeveloperDetail->sum('count') > 0 ? round($data['count'] / $perDeveloperDetail->sum('count') * 100) : 0; @endphp
+                    @php $pct = $totalDev > 0 ? round($data['count'] / $totalDev * 100) : 0; @endphp
                     <div class="mb-3 pb-3 border-bottom admin-dev-row" role="button"
                          data-dev="{{ $dev }}"
                          style="cursor:pointer;padding:8px;border-radius:8px;transition:background .15s;">
@@ -282,31 +276,26 @@ $summaryCards = [
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($projectTelat as $p)
-                    @php
-                        $sc    = config('status.colors')[$p->status] ?? '#6c757d';
-                        $telat = (int) Carbon::now()->diffInDays(Carbon::parse($p->estimasi_selesai), false);
-                    @endphp
+                    @foreach($projectTelat as $pt)
+                    @php $sc = config('status.colors')[$pt['ppsmb']->status] ?? '#6c757d'; @endphp
                     <tr class="border-top table-danger">
                         <td class="px-3 py-3">
-                            <span class="text-muted" style="font-size:13px;">{{ $p->no_ppsmb ?? '—' }}</span>
+                            <span class="text-muted" style="font-size:13px;">{{ $pt['ppsmb']->no_ppsmb ?? '—' }}</span>
                         </td>
-                        <td class="py-3 fw-medium">{{ $p->nama_project }}</td>
-                        <td class="py-3" style="font-size:14px;">{{ $p->tim ?? '—' }}</td>
+                        <td class="py-3 fw-medium">{{ $pt['ppsmb']->nama_project }}</td>
+                        <td class="py-3" style="font-size:14px;">{{ $pt['ppsmb']->tim ?? '—' }}</td>
                         <td class="py-3">
                             <span class="px-2 py-1 rounded"
                                   style="font-size:13px;background:{{ $sc }};color:white;white-space:nowrap;">
-                                {{ $p->status }}
+                                {{ $pt['ppsmb']->status }}
                             </span>
                         </td>
-                        <td class="py-3" style="font-size:14px;">
-                            {{ Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y') }}
-                        </td>
+                        <td class="py-3" style="font-size:14px;">{{ $pt['estimasi_formatted'] }}</td>
                         <td class="py-3">
-                            <span class="fw-bold text-danger" style="font-size:14px;">{{ abs($telat) }} hari</span>
+                            <span class="fw-bold text-danger" style="font-size:14px;">{{ $pt['telat_hari'] }} hari</span>
                         </td>
                         <td class="py-3 pe-3">
-                            <a href="{{ route('ppsmbbyit.show', $p->id) }}"
+                            <a href="{{ route('ppsmbbyit.show', $pt['ppsmb']->id) }}"
                                class="btn btn-sm btn-info" style="font-size:14px;">Rincian</a>
                         </td>
                     </tr>
@@ -342,25 +331,25 @@ $summaryCards = [
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($aktivitasTerbaru as $log)
-                    @php $sc = config('status.colors')[$log->status] ?? '#6c757d'; @endphp
+                    @foreach($aktivitasTerbaru as $ak)
+                    @php $sc = config('status.colors')[$ak['log']->status] ?? '#6c757d'; @endphp
                     <tr class="border-top">
                         <td class="px-3 py-3 text-muted" style="font-size:13px;white-space:nowrap;">
-                            {{ Carbon::parse($log->created_at)->translatedFormat('d M Y, H:i') }}
+                            {{ $ak['waktu_formatted'] }}
                         </td>
                         <td class="py-3">
-                            <span class="text-muted" style="font-size:13px;">{{ $log->ppsmb->no_ppsmb ?? '—' }}</span>
+                            <span class="text-muted" style="font-size:13px;">{{ $ak['log']->ppsmb->no_ppsmb ?? '—' }}</span>
                         </td>
-                        <td class="py-3 fw-medium">{{ $log->ppsmb->nama_project ?? '—' }}</td>
+                        <td class="py-3 fw-medium">{{ $ak['log']->ppsmb->nama_project ?? '—' }}</td>
                         <td class="py-3">
                             <span class="px-2 py-1 rounded"
                                   style="font-size:13px;background:{{ $sc }};color:white;white-space:nowrap;">
-                                {{ $log->status }}
+                                {{ $ak['log']->status }}
                             </span>
                         </td>
                         <td class="py-3 pe-3">
-                            @if($log->ppsmb)
-                            <a href="{{ route('ppsmbbyit.show', $log->ppsmb->id) }}"
+                            @if($ak['log']->ppsmb)
+                            <a href="{{ route('ppsmbbyit.show', $ak['log']->ppsmb->id) }}"
                                class="btn btn-sm btn-info" style="font-size:14px;">Rincian</a>
                             @endif
                         </td>
@@ -379,36 +368,12 @@ $summaryCards = [
 <script>
 (function () {
 
-    @php
-    $allPpsmbJson = $allPpsmb->map(fn($p) => [
-        'id'               => $p->id,
-        'no_ppsmb'         => $p->no_ppsmb ?? '—',
-        'nama_project'     => $p->nama_project,
-        'tim'              => $p->tim ?? '—',
-        'status'           => $p->status,
-        'estimasi_selesai' => $p->estimasi_selesai
-            ? \Carbon\Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y')
-            : '—',
-        'progress'         => $p->progress,
-        'color'            => config('status.colors')[$p->status] ?? '#6c757d',
-        'pic_ba'           => $p->picBa->name ?? '-',
-        'developer'        => $p->developerUser->name ?? '-',
-    ])->values();
+    const allProjects = @json($allPpsmbJson);
+    const statusAktif = @json($statusAktif);
+    const baseUrl     = '{{ url("/ppsmbbyit") }}';
+    const perPage     = 5;
 
-    $statusAktifJs = ['Verifikasi CMD/DINOV','Edit by User','Revisi User',
-        'Antrian Analisa BA IT','Analisa BA IT',
-        'Antrian Development','Proses Development','UAT'];
-
-    $statusLabels = $perStatus->keys();
-    $statusValues = $perStatus->values();
-    $statusColors = $statusLabels->map(fn($s) => config('status.colors')[$s] ?? '#6c757d');
-    @endphp
-
-    const allProjects  = @json($allPpsmbJson);
-    const statusAktif  = @json($statusAktifJs);
-    const perPage      = 5;
-
-    // ── helpers ──────────────────────────────────────────────
+    // ── helpers ───────────────────────────────────────────────
     function renderPagination(list, page, infoEl, pagEl, onPage) {
         const total = list.length;
         const pages = Math.max(1, Math.ceil(total / perPage));
@@ -456,19 +421,19 @@ $summaryCards = [
                     </div>
                 </td>
                 <td class="py-3 pe-3">
-                    <a href="/ppsmbbyit/${p.id}" class="btn btn-sm btn-info" style="font-size:14px;">Rincian</a>
+                    <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info" style="font-size:14px;">Rincian</a>
                 </td>
             </tr>`;
     }
 
     // ── Summary Cards ─────────────────────────────────────────
     let summaryPage = 1, summaryList = [], activeSummaryKey = null;
-    const summaryCard    = document.getElementById('summaryListCard');
-    const summaryBody    = document.getElementById('summaryListBody');
-    const summaryTitle   = document.getElementById('summaryListTitle');
-    const summarySubtitle= document.getElementById('summaryListSubtitle');
-    const summaryInfo    = document.getElementById('summaryListInfo');
-    const summaryPag     = document.getElementById('summaryListPagination');
+    const summaryCard     = document.getElementById('summaryListCard');
+    const summaryBody     = document.getElementById('summaryListBody');
+    const summaryTitle    = document.getElementById('summaryListTitle');
+    const summarySubtitle = document.getElementById('summaryListSubtitle');
+    const summaryInfo     = document.getElementById('summaryListInfo');
+    const summaryPag      = document.getElementById('summaryListPagination');
 
     const summaryTitleMap = {
         all: 'Semua Project', aktif: 'Project Aktif',
@@ -502,16 +467,6 @@ $summaryCards = [
                 if (key === 'rejected') return p.status === 'Rejected';
                 return true;
             });
-
-            // update thead — tambah kolom Tim
-            document.querySelector('#summaryListCard thead tr').innerHTML = `
-                <th class="px-3 py-3 border-0 text-muted fw-semibold">No PPSMB</th>
-                <th class="py-3 border-0 text-muted fw-semibold">Nama Project</th>
-                <th class="py-3 border-0 text-muted fw-semibold">Tim</th>
-                <th class="py-3 border-0 text-muted fw-semibold">Status</th>
-                <th class="py-3 border-0 text-muted fw-semibold">Estimasi Selesai</th>
-                <th class="py-3 border-0 text-muted fw-semibold">Progress</th>
-                <th class="py-3 border-0"></th>`;
 
             summaryTitle.textContent    = summaryTitleMap[key] || key;
             summarySubtitle.textContent = `${summaryList.length} project`;
@@ -569,8 +524,8 @@ $summaryCards = [
             timList = allProjects.filter(p =>
                 statusAktif.includes(p.status) && p.tim === tim
             );
-            timTitle.textContent = `Tim ${tim}`;
-            timSub.textContent   = `${timList.length} project aktif`;
+            timTitle.textContent  = `Tim ${tim}`;
+            timSub.textContent    = `${timList.length} project aktif`;
             timCard.style.display = '';
             renderTimList(1);
             timCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -613,12 +568,12 @@ $summaryCards = [
         }
         resetPersonRows();
         activePersonKey = key;
-        document.querySelector(`[data-ba="${name}"], [data-dev="${name}"]`)
-            ?.style && (document.querySelector(`[data-ba="${name}"], [data-dev="${name}"]`).style.background = '#f0f4ff');
+        const el = document.querySelector(`[data-ba="${name}"], [data-dev="${name}"]`);
+        if (el) el.style.background = '#f0f4ff';
 
         personList = allProjects.filter(filterFn);
-        personTitle.textContent = name;
-        personSub.textContent   = `${personList.length} project aktif`;
+        personTitle.textContent  = name;
+        personSub.textContent    = `${personList.length} project aktif`;
         personCard.style.display = '';
         renderPersonList(1);
         personCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

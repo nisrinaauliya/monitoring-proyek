@@ -1,5 +1,4 @@
 @extends('layouts.app')
-@php use Carbon\Carbon; @endphp
 
 @section('title', 'Dashboard - Sistem Helpdesk')
 @section('page_title', 'Dashboard')
@@ -7,14 +6,6 @@
 @section('content')
 
 {{-- Summary Cards --}}
-@php
-$summaryCards = [
-    ['label'=>'Total Assigned',    'val'=>$totalAssigned, 'color'=>'#4b4d50', 'key'=>'all',    'sub'=>'Project yang di-assign ke anda'],
-    ['label'=>'Proses Development','val'=>$prosesDev,     'color'=>config('status.colors')['Proses Development'], 'key'=>'proses', 'sub'=>'Sedang dikerjakan'],
-    ['label'=>'UAT',               'val'=>$uat,           'color'=>config('status.colors')['UAT'],                'key'=>'uat',    'sub'=>'Sedang pengujian'],
-    ['label'=>'Done (Live)',       'val'=>$doneLive,      'color'=>config('status.colors')['Done (Live)'],        'key'=>'done',   'sub'=>'Project selesai'],
-];
-@endphp
 <div class="row g-3 mb-4">
     @foreach($summaryCards as $sc)
     <div class="col-6 col-sm-3">
@@ -81,9 +72,7 @@ $summaryCards = [
             <div class="card-body p-3">
                 <div class="fw-semibold mb-1" style="font-size:16px;">Workload Development</div>
                 <div class="text-muted mb-3" style="font-size:14px;">Project yang sedang dalam proses development</div>
-                @php
-                    $workloadList = $projectList->filter(fn($pl) => $pl['ppsmb']->status === 'Proses Development');
-                @endphp
+                @php $workloadList = $projectList->filter(fn($pl) => $pl['ppsmb']->status === 'Proses Development'); @endphp
                 @if($workloadList->count() > 0)
                     @foreach($workloadList as $pl)
                     @php
@@ -121,7 +110,7 @@ $summaryCards = [
         </div>
     </div>
 
-    {{-- Timeline Estimasi Selesai --}}
+    {{-- Timeline --}}
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body p-3">
@@ -154,7 +143,7 @@ $summaryCards = [
                                 </span>
                             </div>
                             <div class="text-muted mt-1" style="font-size:14px;">
-                                Estimasi: {{ Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y') }}
+                                Estimasi: {{ $p->estimasi_selesai_formatted ?? '—' }}
                             </div>
                         </div>
                         <div class="text-end flex-shrink-0">
@@ -187,23 +176,8 @@ $summaryCards = [
 <script>
 (function () {
 
-    @php
-    $projectJson = $projectList->map(fn($pl) => [
-        'id'               => $pl['ppsmb']->id,
-        'no_ppsmb'         => $pl['ppsmb']->no_ppsmb ?? '—',
-        'nama_project'     => $pl['ppsmb']->nama_project,
-        'status'           => $pl['ppsmb']->status,
-        'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
-            ? \Carbon\Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
-            : '—',
-        'sisa_hari'        => $pl['sisa_hari'],
-        'telat'            => $pl['telat'],
-        'progress'         => $pl['ppsmb']->progress,
-        'color'            => config('status.colors')[$pl['ppsmb']->status] ?? '#6c757d',
-    ])->values();
-    @endphp
-
     const allProjects = @json($projectJson);
+    const baseUrl     = '{{ url("/ppsmbbyit") }}';
     const perPage     = 5;
 
     function renderPagination(list, page, infoEl, paginationEl, onPage) {
@@ -259,9 +233,7 @@ $summaryCards = [
                     </div>
                 </td>
                 <td class="py-3 pe-3">
-                    <a href="/ppsmbbyit/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">
-                        Rincian
-                    </a>
+                    <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">Rincian</a>
                 </td>
             </tr>
         `;
@@ -312,10 +284,10 @@ $summaryCards = [
             this.style.boxShadow = '0 6px 20px rgba(0,0,0,.1)';
 
             summaryList = allProjects.filter(p => {
-                if (key === 'all')   return true;
+                if (key === 'all')    return true;
                 if (key === 'proses') return p.status === 'Proses Development';
-                if (key === 'uat')   return p.status === 'UAT';
-                if (key === 'done')  return p.status === 'Done (Live)';
+                if (key === 'uat')    return p.status === 'UAT';
+                if (key === 'done')   return p.status === 'Done (Live)';
                 return true;
             });
 

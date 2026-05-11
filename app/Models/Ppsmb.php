@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Ppsmb extends Model
 {
@@ -52,6 +53,14 @@ class Ppsmb extends Model
         $total = $this->detailPengerjaan->sum('mandays');
         $done  = $this->detailPengerjaan->where('is_done', true)->sum('mandays');
         return $total > 0 ? round(($done / $total) * 90, 2) : 0;
+    }
+
+    public function getAgingHariAttribute(): ?int
+    {
+        $latest = $this->histories->sortByDesc('created_at')->first();
+        return $latest
+            ? (int) Carbon::parse($latest->created_at)->diffInDays(now())
+            : null;
     }
 
     public function user()

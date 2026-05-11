@@ -8,6 +8,8 @@ use App\Models\PpsmbHistory;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 
 class DashboardController extends Controller
 {
@@ -25,105 +27,137 @@ class DashboardController extends Controller
 
     private function userDashboard($user)
     {
-        $ppsmbs = Ppsmb::where('dept_id', $user->dept_id)->latest()->get();
+        $ppsmbs = Ppsmb::where('dept_id', $user->dept_id)
+            ->with(['user', 'histories'])
+            ->latest()
+            ->get();
 
-        $total          = $ppsmbs->count();
-        $totalAktif     = $ppsmbs->whereNotIn('status', ['Done (Live)', 'Rejected'])->count();
-        $revisi         = $ppsmbs->where('status', 'Revisi User')->count();
-        $verifikasiCmd  = $ppsmbs->where('status', 'Verifikasi CMD/Dinov')->count();
-        $editByUser     = $ppsmbs->where('status', 'Edit by User - Verifikasi CMD/Dinov')->count();
-        $antrianAnalisa = $ppsmbs->where('status', 'Antrian Analisa BA IT')->count();
-        $analisaBa      = $ppsmbs->where('status', 'Analisa BA IT')->count();
-        $antrianDev     = $ppsmbs->where('status', 'Antrian Development')->count();
-        $prosesDev      = $ppsmbs->where('status', 'Proses Development')->count();
-        $uat            = $ppsmbs->where('status', 'UAT')->count();
-        $done           = $ppsmbs->where('status', 'Done (Live)')->count();
-        $rejected       = $ppsmbs->where('status', 'Rejected')->count();
+        $total      = $ppsmbs->count();
+        $totalAktif = $ppsmbs->whereNotIn('status', ['Done (Live)', 'Rejected'])->count();
+        $revisi     = $ppsmbs->where('status', 'Revisi User')->count();
+        $uat        = $ppsmbs->where('status', 'UAT')->count();
 
-        // aging UAT
-        $agingWarning = false;
-        $uatAging     = [];
+        $uatAging     = $this->buildUatAging($ppsmbs->where('status', 'UAT'));
+        $agingWarning = collect($uatAging)->contains(fn($ua) => $ua['hari'] >= 10);
 
-        foreach ($ppsmbs->where('status', 'UAT') as $p) {
-            $masukUat = PpsmbHistory::where('ppsmb_id', $p->id)
+        $showWarning     = $totalAktif >= 3 && $agingWarning;
+        $blockingProject = $showWarning
+            ? collect($uatAging)->firstWhere(fn($ua) => $ua['hari'] >= 10)['ppsmb']->nama_project
+            : null;
+
+        $autoRejected    = $this->getAutoRejected($user->dept_id);
+        $revisiCountdown = $this->buildRevisiCountdown($ppsmbs);
+
+        $summaryCards = [
+            ['label' => 'Total Project',  'val' => $total,      'color' => '#686464', 'filter' => 'all',         'sub' => 'Semua project departemen'],
+            ['label' => 'Project Aktif',  'val' => $totalAktif, 'color' => '#0d6efd', 'filter' => 'aktif',       'sub' => 'Project yang sedang berjalan'],
+            ['label' => 'Revisi User',    'val' => $revisi,     'color' => config('status.colors.Revisi User'),  'filter' => 'Revisi User', 'sub' => 'Perlu tindakan segera'],
+            ['label' => 'UAT',            'val' => $uat,        'color' => config('status.colors.UAT'),          'filter' => 'UAT',         'sub' => 'Project dalam pengujian'],
+        ];
+
+        return view('dashboard.user', compact(
+            'ppsmbs', 'total', 'totalAktif', 'revisi', 'uat',
+            'uatAging', 'showWarning', 'blockingProject',
+            'autoRejected', 'revisiCountdown', 'summaryCards',
+        ));
+    }
+
+    private function buildUatAging($uatPpsmbs): array
+    {
+        return $uatPpsmbs->map(function ($p) {
+            $masukUat = $p->histories
                 ->where('status', 'UAT')
-                ->latest()
-                ->value('created_at');
+                ->sortByDesc('created_at')
+                ->first()                
+                ?->created_at;
 
             $hari = $masukUat ? (int) Carbon::parse($masukUat)->floatDiffInDays(now()) : 0;
 
-            $uatAging[] = [
+            $barCls   = $hari >= 10 ? 'bg-danger'         : ($hari >= 7 ? 'bg-warning'            : 'bg-success');
+            $txtCls   = $hari >= 10 ? 'text-danger'       : ($hari >= 7 ? 'text-warning'          : 'text-success');
+            $badgeCls = $hari >= 10 ? 'bg-danger'         : ($hari >= 7 ? 'bg-warning text-dark'  : 'bg-success');
+            $badgeTxt = $hari >= 10 ? 'Lewat batas'       : ($hari >= 7 ? 'Hampir batas'          : 'Aman');
+
+            return [
                 'ppsmb'     => $p,
                 'hari'      => $hari,
                 'masuk_uat' => $masukUat ? Carbon::parse($masukUat)->translatedFormat('d F Y') : '-',
                 'pct'       => min(100, round(($hari / 10) * 100)),
+                'barCls'    => $barCls,
+                'txtCls'    => $txtCls,
+                'badgeCls'  => $badgeCls,
+                'badgeTxt'  => $badgeTxt,
             ];
+        })->values()->toArray();
+    }
 
-            if ($hari >= 10) $agingWarning = true;
-        }
+    private function buildRevisiCountdown($ppsmbs): SupportCollection
+    {
+        return $ppsmbs
+            ->where('status', 'Revisi User')
+            ->filter(fn($p) => $p->revisi_at !== null)
+            ->map(function ($p) {
+                $hariKe   = (int) Carbon::parse($p->revisi_at)->diffInDays(now());
+                $sisaHari = max(0, 30 - $hariKe);
 
-        // warning blokir pengajuan
-        $showWarning     = $totalAktif >= 3 && $agingWarning;
-        $blockingProject = null;
+                $barCls = $sisaHari <= 5  ? 'bg-danger'    : ($sisaHari <= 10 ? 'bg-warning'   : 'bg-success');
+                $txtCls = $sisaHari <= 5  ? 'text-danger'  : ($sisaHari <= 10 ? 'text-warning' : 'text-success');
 
-        if ($showWarning) {
-            foreach ($uatAging as $ua) {
-                if ($ua['hari'] >= 10) {
-                    $blockingProject = $ua['ppsmb']->nama_project;
-                    break;
-                }
-            }
-        }
+                return [
+                    'ppsmb'     => $p,
+                    'hari_ke'   => $hariKe,
+                    'sisa_hari' => $sisaHari,
+                    'pct'       => min(100, round(($hariKe / 30) * 100)),
+                    'barCls'    => $barCls,
+                    'txtCls'    => $txtCls,
+                ];
+            })
+            ->values();
+    }
 
-        // sidebar: auto rejected
-        $autoRejected = Ppsmb::where('dept_id', $user->dept_id)
+    private function getAutoRejected(int $deptId): SupportCollection
+    {
+        return Ppsmb::where('dept_id', $deptId)
             ->where('status', 'Rejected')
             ->whereHas('histories', fn($q) => $q->whereNull('pemeriksa')->where('status', 'Rejected'))
             ->latest('updated_at')
             ->take(5)
-            ->get();
-
-        // sidebar: countdown revisi
-        $revisiCountdown = $ppsmbs->where('status', 'Revisi User')
-            ->filter(fn($p) => $p->revisi_at !== null)
-            ->map(fn($p) => [
-                'ppsmb'     => $p,
-                'hari_ke'   => (int) Carbon::parse($p->revisi_at)->diffInDays(now()),
-                'sisa_hari' => max(0, 30 - (int) Carbon::parse($p->revisi_at)->diffInDays(now())),
-                'pct'       => min(100, round(((int) Carbon::parse($p->revisi_at)->diffInDays(now()) / 30) * 100)),
-            ])->values();
-
-        return view('dashboard.user', compact(
-            'ppsmbs', 'total', 'totalAktif', 'revisi',
-            'verifikasiCmd', 'editByUser', 'antrianAnalisa', 'analisaBa',
-            'antrianDev', 'prosesDev', 'uat', 'done', 'rejected',
-            'uatAging', 'showWarning', 'blockingProject',
-            'autoRejected', 'revisiCountdown',
-        ));
+            ->get()
+            ->map(fn($ar) => [
+                'nama_project' => $ar->nama_project,
+                'tanggal'      => $ar->updated_at
+                    ? Carbon::parse($ar->updated_at)->translatedFormat('d F Y')
+                    : '-',
+            ]);
     }
 
     private function verifikatorDashboard($user)
     {
-        $allPpsmbs = Ppsmb::with(['user', 'department'])->latest()->get();
+        $allPpsmbs = Ppsmb::with(['user', 'department', 'histories'])
+            ->latest()
+            ->get();
 
         $activePpsmbs = $allPpsmbs
             ->whereNotIn('status', ['Done (Live)', 'Rejected'])
             ->values();
         
-        // Summary cards
         $menungguVerifikasi = $activePpsmbs->whereIn('status', [
             'Verifikasi CMD/Dinov',
             'Edit by User - Verifikasi CMD/Dinov',
         ])->count();
 
         $revisi  = $activePpsmbs->where('status', 'Revisi User')->count();
-        $uatAging = $activePpsmbs->where('status', 'UAT')->filter(function ($p) {
-            $masukUat = PpsmbHistory::where('ppsmb_id', $p->id)
-                ->where('status', 'UAT')->latest()->value('created_at');
-            return $masukUat && (int) Carbon::parse($masukUat)->floatDiffInDays(now()) >= 10;
-        })->count();
-
         $totalAktif = $activePpsmbs->count();
+        
+        $uatAging = $activePpsmbs->where('status', 'UAT')
+            ->filter(function ($p) {
+                $masukUat = $p->histories
+                    ->where('status', 'UAT')
+                    ->sortByDesc('created_at')
+                    ->first()
+                    ?->created_at;
+                return $masukUat && (int) Carbon::parse($masukUat)->floatDiffInDays(now()) >= 10;
+        })->count();
 
         // Matrix dept x status
         $statusList = array_keys(config('status.colors'));
@@ -131,11 +165,9 @@ class DashboardController extends Controller
 
         $matrix = [];
         foreach ($depts as $dept) {
-            $matrix[$dept] = [];
             foreach ($statusList as $status) {
                 $matrix[$dept][$status] = $allPpsmbs
-                    ->filter(fn($p) => $p->department->code === $dept)
-                    ->where('status', $status)
+                    ->filter(fn($p) => $p->department->code === $dept && $p->status === $status)
                     ->map(fn($p) => [
                         'id'             => $p->id,
                         'nama_project'   => $p->nama_project,
@@ -147,11 +179,32 @@ class DashboardController extends Controller
             }
         }
 
-        // Antrian verifikasi (urut dari paling lama)
         $antrian = $activePpsmbs
             ->whereIn('status', ['Verifikasi CMD/Dinov', 'Edit by User - Verifikasi CMD/Dinov'])
             ->sortBy('created_at')
             ->values();
+
+        $allProjectsData = $allPpsmbs->map(fn($p) => [
+            'id'             => $p->id,
+            'nama_project'   => $p->nama_project,
+            'no_ppsmb'       => $p->no_ppsmb ?? '—',
+            'user'           => $p->user->name,
+            'dept'           => $p->department->code,
+            'status'         => $p->status,
+            'model_aplikasi' => $p->model_aplikasi,
+            'created_at'     => $p->created_at,
+        ])->values();
+
+        $antrianData = $antrian->map(fn($p) => [
+            'id'             => $p->id,
+            'nama_project'   => $p->nama_project,
+            'no_ppsmb'       => $p->no_ppsmb ?? '—',
+            'user'           => $p->user->name,
+            'dept'           => $p->department->code,
+            'status'         => $p->status,
+            'model_aplikasi' => $p->model_aplikasi,
+            'created_at'     => $p->created_at,
+        ])->values();
 
         // Area chart — estimasi selesai per bulan
         $projectAktifDenganEstimasi = $activePpsmbs
@@ -159,36 +212,41 @@ class DashboardController extends Controller
 
         $chartData = [];
         if ($projectAktifDenganEstimasi->count() > 0) {
-            $minDate = $projectAktifDenganEstimasi->min('estimasi_selesai');
-            $maxDate = $projectAktifDenganEstimasi->max('estimasi_selesai');
-
-            $start = Carbon::parse($minDate)->startOfMonth();
-            $end   = Carbon::parse($maxDate)->endOfMonth();
-
+            $start   = Carbon::parse($projectAktifDenganEstimasi->min('estimasi_selesai'))->startOfMonth();
+            $end     = Carbon::parse($projectAktifDenganEstimasi->max('estimasi_selesai'))->endOfMonth();
             $current = $start->copy();
+            
             while ($current->lte($end)) {
                 $bulan = $current->format('Y-m');
                 $chartData[] = [
                     'bulan'   => $current->translatedFormat('M Y'),
-                    'jumlah'  => $projectAktifDenganEstimasi->filter(function ($p) use ($bulan) {
-                        return Carbon::parse($p->estimasi_selesai)->format('Y-m') === $bulan;
-                    })->count(),
+                    'jumlah'  => $projectAktifDenganEstimasi
+                        ->filter(fn($p) => Carbon::parse($p->estimasi_selesai)->format('Y-m') === $bulan)
+                        ->count(),
                 ];
                 $current->addMonth();
             }
         }
 
-        // Trend pengajuan per bulan
-        $trendPengajuan = Ppsmb::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as bulan, COUNT(*) as jumlah")
-            ->groupBy('bulan')
-            ->orderBy('bulan')
-            ->get();
+        $modelMap = [
+            'Semua'          => null,
+            'Eksternal'      => 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot',
+            'Internal MD'    => 'Aplikasi Internal MD',
+            'Improvement IT' => 'Improvement IT System',
+        ];
+
+        $summaryDefs = [
+            ['label' => 'Menunggu Verifikasi', 'key' => 'menunggu',   'color' => config('status.colors.Verifikasi CMD/Dinov'), 'sub' => 'Perlu ditindaklanjuti'],
+            ['label' => 'Revisi User',         'key' => 'revisi',     'color' => config('status.colors.Revisi User'),          'sub' => 'Menunggu revisi user'],
+            ['label' => 'UAT Aging >10 Hari',  'key' => 'uatAging',   'color' => config('status.colors.UAT'),                  'sub' => 'Melewati batas UAT'],
+            ['label' => 'Project Aktif',       'key' => 'totalAktif', 'color' => '#0d6efd',                                  'sub' => 'Semua project aktif'],
+        ];
 
         return view('dashboard.verifikator', compact(
-            'allPpsmbs', 'activePpsmbs',
-            'menungguVerifikasi', 'revisi', 'uatAging',
+            'allProjectsData', 'antrianData',
+            'menungguVerifikasi', 'revisi', 'uatAging', 'totalAktif',
             'matrix', 'statusList', 'depts',
-            'antrian', 'chartData', 'trendPengajuan',
+            'chartData', 'modelMap', 'summaryDefs',
         ));
     }
 
@@ -201,9 +259,9 @@ class DashboardController extends Controller
             default            => view('dashboard.it'),
         };
     }
+
     private function projectLeaderDashboard($user)
     {
-        // ambil project sesuai tim project leader
         $ppsmbs = Ppsmb::with('user')
             ->whereIn('status', [
                 'Antrian Analisa BA IT',
@@ -222,60 +280,119 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
-        // summary cards
-        $totalAktif      = $ppsmbs->count();
-        $analisaBa       = $ppsmbs->where('status', 'Analisa BA IT')->count();
-        $antrianAnalisa  = $ppsmbs->where('status', 'Antrian Analisa BA IT')->count();
-        $antrianDev      = $ppsmbs->where('status', 'Antrian Development')->count();
-        $prosesDev       = $ppsmbs->where('status', 'Proses Development')->count();
-        $uat             = $ppsmbs->where('status', 'UAT')->count();
+        $totalAktif     = $ppsmbs->count();
+        $analisaBa      = $ppsmbs->where('status', 'Analisa BA IT')->count();
+        $antrianAnalisa = $ppsmbs->where('status', 'Antrian Analisa BA IT')->count();
+        $antrianDev     = $ppsmbs->where('status', 'Antrian Development')->count();
+        $prosesDev      = $ppsmbs->where('status', 'Proses Development')->count();
+        $uat            = $ppsmbs->where('status', 'UAT')->count();
 
-        // project yang estimasinya telat (estimasi_selesai < hari ini dan belum done)
         $projectTelat = $ppsmbs->filter(fn($p) =>
             $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast()
         )->count();
 
         $itDept = Department::where('code', 'IT')->first();
 
-        // beban kerja per BA
         $bebanBa = User::where('dept_id', $itDept->id)
             ->where('role', 'business_analyst')
             ->when($user->tim, fn($q) => $q->where('tim', $user->tim))
             ->get()
-            ->map(fn($ba)   => [
+            ->map(fn($ba) => [
                 'nama'      => $ba->name,
-                'analisa'   => $ppsmbs->where('pic_ba', $ba->id)
-                                    ->where('status', 'Analisa BA IT')->count(),
+                'analisa'   => $ppsmbs->where('pic_ba', $ba->id)->where('status', 'Analisa BA IT')->count(),
                 'total'     => $ppsmbs->where('pic_ba', $ba->id)->count(),
                 'secondary' => $ppsmbs->where('secondary_ba', $ba->id)->count(),
             ]);
 
-        // beban kerja per developer
         $bebanDev = User::where('dept_id', $itDept->id)
             ->where('role', 'developer')
             ->when($user->tim, fn($q) => $q->where('tim', $user->tim))
             ->get()
             ->map(fn($dev) => [
                 'nama'     => $dev->name,
-                'aktif'    => $ppsmbs->where('developer', $dev->id)
-                                    ->whereIn('status', ['Proses Development', 'UAT'])->count(),
+                'aktif'    => $ppsmbs->where('developer', $dev->id)->whereIn('status', ['Proses Development', 'UAT'])->count(),
                 'total'    => $ppsmbs->where('developer', $dev->id)->count(),
                 'progress' => $ppsmbs->where('developer', $dev->id)->avg('progress') ?? 0,
             ]);
 
-        // list project dengan info estimasi
         $projectList = $ppsmbs->map(fn($p) => [
-            'ppsmb'            => $p,
-            'telat'            => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast(),
-            'sisa_hari'        => $p->estimasi_selesai
+            'ppsmb'     => $p,
+            'telat'     => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast(),
+            'sisa_hari' => $p->estimasi_selesai
                 ? (int) Carbon::now()->diffInDays(Carbon::parse($p->estimasi_selesai), false)
                 : null,
         ]);
 
+        $projectJson = $projectList->map(fn($pl) => [
+            'id'               => $pl['ppsmb']->id,
+            'no_ppsmb'         => $pl['ppsmb']->no_ppsmb ?? '—',
+            'nama_project'     => $pl['ppsmb']->nama_project,
+            'status'           => $pl['ppsmb']->status,
+            'pic_ba'           => $pl['ppsmb']->picBa->name ?? '—',
+            'secondary_ba'     => $pl['ppsmb']->secondaryBa->name ?? '—',
+            'developer'        => $pl['ppsmb']->developerUser->name ?? '—',
+            'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
+                ? Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
+                : '—',
+            'sisa_hari'        => $pl['sisa_hari'],
+            'telat'            => $pl['telat'],
+            'progress'         => $pl['ppsmb']->progress,
+            'color'            => config('status.colors')[$pl['ppsmb']->status] ?? '#6c757d',
+        ])->values();
+
+        $chartSelesai = Ppsmb::where('status', 'Done (Live)')
+            ->whereNotNull('updated_at')
+            ->when($user->tim === 'internal', fn($q) => $q->whereIn('model_aplikasi', [
+                'Aplikasi Internal MD',
+                'Improvement IT System',
+            ]))
+            ->when($user->tim === 'eksternal', fn($q) => $q->where('model_aplikasi',
+                'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'
+            ))
+            ->get()
+            ->groupBy(fn($p) => Carbon::parse($p->updated_at)->format('Y-m'))
+            ->map(fn($g, $bulan) => [
+                'bulan'  => Carbon::createFromFormat('Y-m', $bulan)->translatedFormat('M Y'),
+                'key'    => $bulan,
+                'jumlah' => $g->count(),
+            ])
+            ->sortKeys()
+            ->values();
+
+        $chartRejected = Ppsmb::where('status', 'Rejected')
+            ->whereNotNull('updated_at')
+            ->when($user->tim === 'internal', fn($q) => $q->whereIn('model_aplikasi', [
+                'Aplikasi Internal MD',
+                'Improvement IT System',
+            ]))
+            ->when($user->tim === 'eksternal', fn($q) => $q->where('model_aplikasi',
+                'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'
+            ))
+            ->get()
+            ->groupBy(fn($p) => Carbon::parse($p->updated_at)->format('Y-m'))
+            ->map(fn($g, $bulan) => [
+                'bulan'  => Carbon::createFromFormat('Y-m', $bulan)->translatedFormat('M Y'),
+                'key'    => $bulan,
+                'jumlah' => $g->count(),
+            ])
+            ->sortKeys()
+            ->values();
+
+        $summaryCards = [
+            ['label' => 'Project Aktif',         'val' => $totalAktif,     'color' => '#4b4d50',                                              'key' => 'all',             'sub' => 'Project sedang berjalan'],
+            ['label' => 'Antrian Analisa BA IT',  'val' => $antrianAnalisa, 'color' => config('status.colors.Antrian Analisa BA IT'),          'key' => 'antrian_analisa', 'sub' => 'Menunggu BA analisa'],
+            ['label' => 'Analisa BA IT',          'val' => $analisaBa,      'color' => config('status.colors.Analisa BA IT'),                  'key' => 'analisa_ba',      'sub' => 'Sedang dianalisa BA'],
+            ['label' => 'Antrian Development',    'val' => $antrianDev,     'color' => config('status.colors.Antrian Development'),            'key' => 'antrian_dev',     'sub' => 'Menunggu developer'],
+            ['label' => 'Proses Development',     'val' => $prosesDev,      'color' => config('status.colors.Proses Development'),             'key' => 'proses_dev',      'sub' => 'Sedang dikerjakan'],
+            ['label' => 'UAT',                    'val' => $uat,            'color' => config('status.colors.UAT'),                            'key' => 'uat',             'sub' => 'Sedang pengujian'],
+        ];
+
         return view('dashboard.it.project_leader', compact(
             'ppsmbs', 'totalAktif', 'antrianAnalisa', 'analisaBa', 'antrianDev',
             'prosesDev', 'uat', 'projectTelat',
-            'bebanBa', 'bebanDev', 'projectList', 'user',
+            'bebanBa', 'bebanDev', 'projectList',
+            'projectJson', 'chartSelesai', 'chartRejected',
+            'summaryCards', 'user',
         ));
     }
 
@@ -295,12 +412,12 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
-        $totalAssigned  = $ppsmbs->count();
-        $perluAnalisa   = $ppsmbs->where('status', 'Analisa BA IT')->count();
-        $antrian        = $ppsmbs->where('status', 'Antrian Development')->count();
-        $sudahLanjut    = $ppsmbs->whereIn('status', ['Proses Development', 'UAT'])->count();
-        $prosesDev      = $ppsmbs->where('status', 'Proses Development')->count();
-        $uat            = $ppsmbs->where('status', 'UAT')->count();
+        $totalAssigned = $ppsmbs->count();
+        $perluAnalisa  = $ppsmbs->where('status', 'Analisa BA IT')->count();
+        $antrian       = $ppsmbs->where('status', 'Antrian Development')->count();
+        $sudahLanjut   = $ppsmbs->whereIn('status', ['Proses Development', 'UAT'])->count();
+        $prosesDev     = $ppsmbs->where('status', 'Proses Development')->count();
+        $uat           = $ppsmbs->where('status', 'UAT')->count();
 
         $projectList = $ppsmbs->map(fn($p) => [
             'ppsmb'        => $p,
@@ -312,9 +429,33 @@ class DashboardController extends Controller
             'telat'        => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast(),
         ]);
 
+        $projectJson = $projectList->map(fn($pl) => [
+            'id'               => $pl['ppsmb']->id,
+            'no_ppsmb'         => $pl['ppsmb']->no_ppsmb ?? '—',
+            'nama_project'     => $pl['ppsmb']->nama_project,
+            'status'           => $pl['ppsmb']->status,
+            'is_primary'       => $pl['is_primary'],
+            'is_secondary'     => $pl['is_secondary'],
+            'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
+                ? Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
+                : '—',
+            'sisa_hari'        => $pl['sisa_hari'],
+            'telat'            => $pl['telat'],
+            'progress'         => $pl['ppsmb']->progress,
+            'color'            => config('status.colors')[$pl['ppsmb']->status] ?? '#6c757d',
+        ])->values();
+
+        $summaryCards = [
+            ['label' => 'Total Assigned',      'val' => $totalAssigned, 'color' => '#4b4d50',                                           'key' => 'all',     'sub' => 'Project yang di-assign ke anda'],
+            ['label' => 'Analisa BA IT',       'val' => $perluAnalisa,  'color' => config('status.colors.Analisa BA IT'),               'key' => 'analisa', 'sub' => 'Perlu tindak lanjut Business Analyst'],
+            ['label' => 'Antrian Development', 'val' => $antrian,       'color' => config('status.colors.Antrian Development'),         'key' => 'antrian', 'sub' => 'Menunggu development'],
+            ['label' => 'Proses Development',  'val' => $prosesDev,     'color' => config('status.colors.Proses Development'),          'key' => 'proses',  'sub' => 'Sedang dikerjakan'],
+            ['label' => 'UAT',                 'val' => $uat,           'color' => config('status.colors.UAT'),                         'key' => 'uat',     'sub' => 'Sedang pengujian'],
+        ];
+
         return view('dashboard.it.business_analyst', compact(
             'ppsmbs', 'totalAssigned', 'perluAnalisa', 'antrian', 'sudahLanjut',
-            'prosesDev', 'uat', 'projectList', 'user',
+            'prosesDev', 'uat', 'projectList', 'projectJson', 'summaryCards', 'user',
         ));
     }
 
@@ -336,16 +477,37 @@ class DashboardController extends Controller
         $doneLive      = $ppsmbs->where('status', 'Done (Live)')->count();
 
         $projectList = $ppsmbs->map(fn($p) => [
-            'ppsmb'    => $p,
+            'ppsmb'     => $p,
             'sisa_hari' => $p->estimasi_selesai
                 ? (int) Carbon::now()->diffInDays(Carbon::parse($p->estimasi_selesai), false)
                 : null,
-            'telat'    => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast(),
+            'telat'     => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast(),
         ]);
+
+        $projectJson = $projectList->map(fn($pl) => [
+            'id'               => $pl['ppsmb']->id,
+            'no_ppsmb'         => $pl['ppsmb']->no_ppsmb ?? '—',
+            'nama_project'     => $pl['ppsmb']->nama_project,
+            'status'           => $pl['ppsmb']->status,
+            'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
+                ? Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
+                : '—',
+            'sisa_hari'        => $pl['sisa_hari'],
+            'telat'            => $pl['telat'],
+            'progress'         => $pl['ppsmb']->progress,
+            'color'            => config('status.colors')[$pl['ppsmb']->status] ?? '#6c757d',
+        ])->values();
+
+        $summaryCards = [
+            ['label' => 'Total Assigned',    'val' => $totalAssigned, 'color' => '#4b4d50',                                        'key' => 'all',    'sub' => 'Project yang di-assign ke anda'],
+            ['label' => 'Proses Development', 'val' => $prosesDev,    'color' => config('status.colors.Proses Development'),       'key' => 'proses', 'sub' => 'Sedang dikerjakan'],
+            ['label' => 'UAT',               'val' => $uat,           'color' => config('status.colors.UAT'),                      'key' => 'uat',    'sub' => 'Sedang pengujian'],
+            ['label' => 'Done (Live)',        'val' => $doneLive,      'color' => config('status.colors.Done (Live)'),              'key' => 'done',   'sub' => 'Project selesai'],
+        ];
 
         return view('dashboard.it.developer', compact(
             'ppsmbs', 'totalAssigned', 'prosesDev', 'uat', 'doneLive',
-            'projectList', 'user',
+            'projectList', 'projectJson', 'summaryCards', 'user',
         ));
     }
 
@@ -364,47 +526,48 @@ class DashboardController extends Controller
             'UAT',
         ];
 
-        // Summary Cards
         $totalProject  = $allPpsmb->count();
         $totalAktif    = $allPpsmb->whereIn('status', $statusAktif)->count();
         $totalSelesai  = $allPpsmb->where('status', 'Done (Live)')->count();
         $totalRejected = $allPpsmb->where('status', 'Rejected')->count();
 
-        // Chart — distribusi per status
         $perStatus = $allPpsmb->groupBy('status')->map->count()->sortDesc();
 
-        // Workload per Tim
         $perTim = $allPpsmb->whereIn('status', $statusAktif)
             ->groupBy(fn($p) => match($p->model_aplikasi) {
                 'Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot' => 'Eksternal',
                 default => 'Internal',
             })->map->count()->sortDesc();
 
-        // Workload per BA
         $perBa = $allPpsmb->whereIn('status', $statusAktif)
             ->whereNotNull('pic_ba')
             ->groupBy(fn($p) => $p->picBa->name ?? '—')
             ->map->count()->sortDesc();
 
-        // Workload per Developer
         $perDeveloper = $allPpsmb->whereIn('status', $statusAktif)
             ->whereNotNull('developer')
             ->groupBy(fn($p) => $p->developerUser->name ?? '—')
             ->map->count()->sortDesc();
 
-        // Project Telat
         $projectTelat = $allPpsmb->whereIn('status', $statusAktif)
             ->filter(fn($p) => $p->estimasi_selesai && Carbon::parse($p->estimasi_selesai)->isPast())
             ->sortBy('estimasi_selesai')
+            ->map(fn($p) => [
+                'ppsmb'            => $p,
+                'telat_hari'       => abs((int) Carbon::now()->diffInDays(Carbon::parse($p->estimasi_selesai), false)),
+                'estimasi_formatted' => Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y'),
+            ])
             ->values();
 
-        // Aktivitas Terbaru
         $aktivitasTerbaru = PpsmbHistory::with('ppsmb')
             ->latest()
             ->take(10)
-            ->get();
+            ->get()
+            ->map(fn($log) => [
+                'log'              => $log,
+                'waktu_formatted'  => Carbon::parse($log->created_at)->translatedFormat('d M Y, H:i'),
+            ]);
 
-        // Chart trend — project masuk vs selesai 6 bulan terakhir
         $trendLabels  = collect();
         $trendMasuk   = collect();
         $trendSelesai = collect();
@@ -425,7 +588,6 @@ class DashboardController extends Controller
             );
         }
 
-        // Workload BA detail
         $perBaDetail = $allPpsmb->whereIn('status', $statusAktif)
             ->whereNotNull('pic_ba')
             ->groupBy(fn($p) => $p->picBa->name ?? '—')
@@ -440,7 +602,6 @@ class DashboardController extends Controller
             ])
             ->sortByDesc('count');
 
-        // Workload Developer detail
         $perDeveloperDetail = $allPpsmb->whereIn('status', $statusAktif)
             ->whereNotNull('developer')
             ->groupBy(fn($p) => $p->developerUser->name ?? '—')
@@ -455,12 +616,40 @@ class DashboardController extends Controller
             ])
             ->sortByDesc('count');
 
+        $allPpsmbJson = $allPpsmb->map(fn($p) => [
+            'id'               => $p->id,
+            'no_ppsmb'         => $p->no_ppsmb ?? '—',
+            'nama_project'     => $p->nama_project,
+            'tim'              => $p->tim ?? '—',
+            'status'           => $p->status,
+            'estimasi_selesai' => $p->estimasi_selesai
+                ? Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y')
+                : '—',
+            'progress'         => $p->progress,
+            'color'            => config('status.colors')[$p->status] ?? '#6c757d',
+            'pic_ba'           => $p->picBa->name ?? '-',
+            'developer'        => $p->developerUser->name ?? '-',
+        ])->values();
+
+        $statusLabels = $perStatus->keys();
+        $statusValues = $perStatus->values();
+        $statusColors = $statusLabels->map(fn($s) => config('status.colors')[$s] ?? '#6c757d');
+
+        $summaryCards = [
+            ['label' => 'Total Project', 'val' => $totalProject,  'color' => '#686464', 'key' => 'all',      'sub' => 'Semua project masuk'],
+            ['label' => 'Project Aktif', 'val' => $totalAktif,    'color' => '#0d6efd', 'key' => 'aktif',    'sub' => 'Sedang berjalan'],
+            ['label' => 'Done (Live)',   'val' => $totalSelesai,  'color' => config('status.colors.Done (Live)'),  'key' => 'done',     'sub' => 'Project selesai'],
+            ['label' => 'Rejected',      'val' => $totalRejected, 'color' => config('status.colors.Rejected'),     'key' => 'rejected', 'sub' => 'Project ditolak'],
+        ];
+
         return view('dashboard.admin', compact(
             'allPpsmb', 'totalProject', 'totalAktif', 'totalSelesai', 'totalRejected',
             'perStatus', 'perTim', 'perBa', 'perDeveloper',
             'perBaDetail', 'perDeveloperDetail',
             'trendLabels', 'trendMasuk', 'trendSelesai',
             'projectTelat', 'aktivitasTerbaru',
+            'allPpsmbJson', 'statusLabels', 'statusValues', 'statusColors',
+            'summaryCards', 'statusAktif',
         ));
     }
 }

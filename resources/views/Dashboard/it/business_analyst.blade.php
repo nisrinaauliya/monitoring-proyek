@@ -1,5 +1,4 @@
 @extends('layouts.app')
-@php use Carbon\Carbon; @endphp
 
 @section('title', 'Dashboard - Sistem Helpdesk')
 @section('page_title', 'Dashboard')
@@ -7,15 +6,6 @@
 @section('content')
 
 {{-- Summary Cards --}}
-@php
-$summaryCards = [
-    ['label'=>'Total Assigned',      'val'=>$totalAssigned,                                    'color'=>'#4b4d50',          'key'=>'all',      'sub'=>'Project yang di-assign ke anda'],
-    ['label'=>'Analisa BA IT',       'val'=>$perluAnalisa,                                     'color'=>config('status.colors')['Analisa BA IT'],          'key'=>'analisa',  'sub'=>' Perlu tindak lanjut Business Analyst'],
-    ['label'=>'Antrian Development', 'val'=>$antrian,                                          'color'=>config('status.colors')['Antrian Development'],    'key'=>'antrian',  'sub'=>'Menunggu development'],
-    ['label'=>'Proses Development',  'val'=>$ppsmbs->where('status','Proses Development')->count(), 'color'=>config('status.colors')['Proses Development'], 'key'=>'proses',   'sub'=>'Sedang dikerjakan'],
-    ['label'=>'UAT',                 'val'=>$ppsmbs->where('status','UAT')->count(),           'color'=>config('status.colors')['UAT'],                    'key'=>'uat',      'sub'=>'Sedang pengujian'],
-];
-@endphp
 <div class="row g-3 mb-4">
     @foreach($summaryCards as $sc)
     <div class="col-6 col-sm-4 col-md">
@@ -83,9 +73,7 @@ $summaryCards = [
             <div class="card-body p-3">
                 <div class="fw-semibold mb-1" style="font-size:16px;">Workload Analisa</div>
                 <div class="text-muted mb-3" style="font-size:14px;">Perlu tindak lanjut Business Analyst</div>
-                @php
-                    $analisaList = $projectList->filter(fn($pl) => $pl['ppsmb']->status === 'Analisa BA IT');
-                @endphp
+                @php $analisaList = $projectList->filter(fn($pl) => $pl['ppsmb']->status === 'Analisa BA IT'); @endphp
                 @if($analisaList->count() > 0)
                     @foreach($analisaList as $pl)
                     @php
@@ -128,7 +116,7 @@ $summaryCards = [
         </div>
     </div>
 
-    {{-- Timeline Estimasi Selesai --}}
+    {{-- Timeline --}}
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body p-3">
@@ -144,13 +132,11 @@ $summaryCards = [
                 <div class="overflow-auto" style="max-height:380px;">
                     @foreach($timelineList as $pl)
                     @php
-                        $p  = $pl['ppsmb'];
-                        $sc = config('status.colors')[$p->status] ?? '#6c757d';
-                        $h  = $pl['sisa_hari'];
-                        $txtCls = $pl['telat'] ? 'text-danger' : ($h <= 7 ? 'text-warning' : 'text-muted');
+                        $p      = $pl['ppsmb'];
+                        $sc     = config('status.colors')[$p->status] ?? '#6c757d';
+                        $h      = $pl['sisa_hari'];
                     @endphp
                     <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom">
-                        {{-- Timeline dot --}}
                         <div class="d-flex flex-column align-items-center flex-shrink-0" style="width:12px;margin-top:4px;">
                             <div class="rounded-circle mt-1" style="width:10px;height:10px;background:{{ $sc }};flex-shrink:0;"></div>
                         </div>
@@ -166,7 +152,7 @@ $summaryCards = [
                                 @endif
                             </div>
                             <div class="text-muted mt-1" style="font-size:14px;">
-                                Estimasi: {{ Carbon::parse($p->estimasi_selesai)->translatedFormat('d M Y') }}
+                                Estimasi: {{ $pl['ppsmb']->estimasi_selesai_formatted ?? '—' }}
                             </div>
                         </div>
                         <div class="text-end flex-shrink-0">
@@ -199,25 +185,8 @@ $summaryCards = [
 <script>
 (function () {
 
-    @php
-    $projectJson = $projectList->map(fn($pl) => [
-        'id'             => $pl['ppsmb']->id,
-        'no_ppsmb'       => $pl['ppsmb']->no_ppsmb ?? '—',
-        'nama_project'   => $pl['ppsmb']->nama_project,
-        'status'         => $pl['ppsmb']->status,
-        'is_primary'     => $pl['is_primary'],
-        'is_secondary'   => $pl['is_secondary'],
-        'estimasi_selesai' => $pl['ppsmb']->estimasi_selesai
-            ? \Carbon\Carbon::parse($pl['ppsmb']->estimasi_selesai)->translatedFormat('d M Y')
-            : '—',
-        'sisa_hari'      => $pl['sisa_hari'],
-        'telat'          => $pl['telat'],
-        'progress'       => $pl['ppsmb']->progress,
-        'color'          => config('status.colors')[$pl['ppsmb']->status] ?? '#6c757d',
-    ])->values();
-    @endphp
-
     const allProjects = @json($projectJson);
+    const baseUrl     = '{{ url("/ppsmbbyit") }}';
     const perPage     = 5;
 
     function renderPagination(list, page, infoEl, paginationEl, onPage) {
@@ -278,25 +247,22 @@ $summaryCards = [
                     </div>
                 </td>
                 <td class="py-3 pe-3">
-                    <a href="/ppsmbbyit/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">
-                        Rincian
-                    </a>
+                    <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">Rincian</a>
                 </td>
             </tr>
         `;
     }
 
-    // Summary card
     let summaryPage   = 1;
     let summaryList   = [];
     let activeCardKey = null;
 
-    const summaryCard      = document.getElementById('summaryListCard');
-    const summaryBody      = document.getElementById('summaryListBody');
-    const summaryTitle     = document.getElementById('summaryListTitle');
-    const summarySubtitle  = document.getElementById('summaryListSubtitle');
-    const summaryInfo      = document.getElementById('summaryListInfo');
-    const summaryPagBtns   = document.getElementById('summaryListPagination');
+    const summaryCard     = document.getElementById('summaryListCard');
+    const summaryBody     = document.getElementById('summaryListBody');
+    const summaryTitle    = document.getElementById('summaryListTitle');
+    const summarySubtitle = document.getElementById('summaryListSubtitle');
+    const summaryInfo     = document.getElementById('summaryListInfo');
+    const summaryPagBtns  = document.getElementById('summaryListPagination');
 
     const titleMap = {
         all:     'Semua Project',

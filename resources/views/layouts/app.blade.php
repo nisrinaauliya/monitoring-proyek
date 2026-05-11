@@ -120,11 +120,6 @@
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item rounded" href="#">
-                                    <i class="bi bi-key me-2"></i>Change Password
-                                </a>
-                            </li>
-                            <li>
                                 <a class="dropdown-item rounded text-danger" href="#"
                                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                     <i class="bi bi-box-arrow-right me-2"></i>Logout
