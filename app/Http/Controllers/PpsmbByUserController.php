@@ -100,14 +100,29 @@ class PpsmbByUserController extends Controller
 
     public function checkUat()
     {
-        $uatCount = Ppsmb::where('dept_id', Auth::user()->dept_id)
-            ->where('status', 'UAT')
-            ->count();
+        // $uatCount = Ppsmb::where('dept_id', Auth::user()->dept_id)
+        //     ->where('status', 'UAT')
+        //     ->count();
 
-        $uatAging = Ppsmb::where('dept_id', Auth::user()->dept_id)
+        // $uatAging = Ppsmb::where('dept_id', Auth::user()->dept_id)
+        //     ->where('status', 'UAT')
+        //     ->where('updated_at', '<=', now()->subDays(10))
+        //     ->exists();
+
+        // return response()->json([
+        //     'blocked' => $uatCount >= 3 && $uatAging
+        // ]);
+
+        $uatProjects = Ppsmb::with('histories')
+            ->where('dept_id', Auth::user()->dept_id)
             ->where('status', 'UAT')
-            ->where('updated_at', '<=', now()->subDays(10))
-            ->exists();
+            ->get();
+
+        $uatCount = $uatProjects->count();
+
+        $uatAging = $uatProjects->contains(function ($p) {
+            return $p->aging_hari > 10;
+        });
 
         return response()->json([
             'blocked' => $uatCount >= 3 && $uatAging

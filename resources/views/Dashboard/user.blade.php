@@ -156,31 +156,61 @@
                 <div class="text-muted mb-3" style="font-size:14px;">Auto reject di hari ke-30</div>
 
                 @forelse($revisiCountdown as $rc)
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-start mb-1">
-                            <span style="font-size:16px; font-weight:500; max-width:140px;" class="text-truncate">
-                                {{ $rc['ppsmb']->nama_project }}
-                            </span>
-                            <span class="fw-bold {{ $rc['txtCls'] }}" style="font-size:18px;">
-                                {{ $rc['sisa_hari'] }}<span class="text-muted fw-normal" style="font-size:14px;"> hari lagi</span>
-                            </span>
-                        </div>
-                        <div class="progress rounded-pill" style="height:5px; background:#e9ecef;">
-                            <div class="progress-bar {{ $rc['barCls'] }} rounded-pill" style="width:{{ $rc['pct'] }}%;"></div>
-                        </div>
-                        <div class="d-flex justify-content-between mt-1">
-                            <span class="text-muted" style="font-size:14px;">Hari ke-{{ $rc['hari_ke'] }}</span>
-                            <a href="{{ route('ppsmbbyuser.edit', $rc['ppsmb']->id) }}"
-                            style="font-size:14px; color:#0d6efd;">Revisi sekarang →</a>
-                        </div>
+                {{-- Project milik user sendiri --}}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <span style="font-size:16px; font-weight:500; max-width:140px;" class="text-truncate">
+                            {{ $rc['ppsmb']->nama_project }}
+                        </span>
+                        <span class="fw-bold {{ $rc['txtCls'] }}" style="font-size:18px;">
+                            {{ $rc['sisa_hari'] }}<span class="text-muted fw-normal" style="font-size:14px;"> hari lagi</span>
+                        </span>
                     </div>
-                @empty
+                    <div class="progress rounded-pill" style="height:5px; background:#e9ecef;">
+                        <div class="progress-bar {{ $rc['barCls'] }} rounded-pill" style="width:{{ $rc['pct'] }}%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted" style="font-size:14px;">Hari ke-{{ $rc['hari_ke'] }}</span>
+                        <a href="{{ route('ppsmbbyuser.edit', $rc['ppsmb']->id) }}"
+                        style="font-size:14px; color:#0d6efd;">Revisi sekarang →</a>
+                    </div>
+                </div>
+
+            @empty
+                {{-- Cek apakah ada milik orang lain --}}
+                @if($revisiCountdownOther->isEmpty())
                     <div class="d-flex flex-column align-items-center justify-content-center text-center py-3">
                         <i class="bi bi-check-circle text-success mb-2" style="font-size:32px;"></i>
                         <div style="font-size:16px; font-weight:500;">Aman</div>
                         <div class="text-muted" style="font-size:14px;">Tidak ada project revisi saat ini</div>
                     </div>
-                @endforelse
+                @endif
+            @endforelse
+
+            {{-- Project revisi milik anggota departemen lain --}}
+            @foreach($revisiCountdownOther as $rc)
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <span style="font-size:16px; font-weight:500; max-width:140px;" class="text-truncate">
+                            {{ $rc['ppsmb']->nama_project }}
+                        </span>
+                        <span class="fw-bold {{ $rc['txtCls'] }}" style="font-size:18px;">
+                            {{ $rc['sisa_hari'] }}<span class="text-muted fw-normal" style="font-size:14px;"> hari lagi</span>
+                        </span>
+                    </div>
+                    <div class="progress rounded-pill" style="height:5px; background:#e9ecef;">
+                        <div class="progress-bar {{ $rc['barCls'] }} rounded-pill" style="width:{{ $rc['pct'] }}%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted" style="font-size:14px;">Hari ke-{{ $rc['hari_ke'] }}</span>
+                        {{-- Bukan milik user ini → trigger modal, bukan link edit --}}
+                        <a href="#"
+                        style="font-size:14px; color:#0d6efd;"
+                        onclick="showWrongUserModal('{{ addslashes($rc['ppsmb']->user->name) }}'); return false;">
+                        Revisi sekarang →</a>
+                    </div>
+                </div>
+            @endforeach
             </div>
         </div>
 
@@ -287,6 +317,20 @@
     </div>
 </div>
 
+{{-- Modal: akses revisi salah user --}}
+<div class="modal fade" id="wrongUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-sm rounded-4">
+            <div class="modal-body p-4 text-center">
+                <i class="bi bi-person-lock text-warning mb-3" style="font-size:36px;"></i>
+                <div class="fw-semibold mb-1" style="font-size:16px;">Bukan project Anda</div>
+                <div class="text-muted mb-4" id="wrongUserMsg" style="font-size:14px;"></div>
+                <button class="btn btn-sm btn-secondary rounded-pill px-4"
+                        data-bs-dismiss="modal">Mengerti</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -469,5 +513,12 @@
 
     renderTable();
 })();
+
+function showWrongUserModal(pengaju) {
+        document.getElementById('wrongUserMsg').textContent =
+            'Login sebagai ' + pengaju + ' untuk merevisi project ini.';
+        new bootstrap.Modal(document.getElementById('wrongUserModal')).show();
+}
+
 </script>
 @endpush

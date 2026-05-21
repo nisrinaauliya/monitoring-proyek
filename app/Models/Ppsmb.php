@@ -57,9 +57,18 @@ class Ppsmb extends Model
 
     public function getAgingHariAttribute(): ?int
     {
-        $latest = $this->histories->sortByDesc('created_at')->first();
-        return $latest
-            ? (int) Carbon::parse($latest->created_at)->diffInDays(now())
+        // $latest = $this->histories->sortByDesc('created_at')->first();
+        // return $latest
+        //     ? (int) Carbon::parse($latest->created_at)->diffInDays(now())
+        //     : null;
+
+        $uatHistory = $this->histories
+            ->where('status', 'UAT')
+            ->sortByDesc('created_at')
+            ->first();
+
+        return $uatHistory
+            ? (int) Carbon::parse($uatHistory->created_at)->diffInDays(now())
             : null;
     }
 

@@ -304,7 +304,7 @@
                         </div>
                     </div>
                     <button type="submit" class="btn btn-sm text-white" style="background-color: #af2027;">
-                        <i class="bi bi-person-check me-1"></i>Tentukan & Mulai Development
+                        <i class="bi bi-person-check me-1"></i>Simpan & Mulai Development
                     </button>
                 </form>
             </div>
@@ -323,11 +323,21 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:13px;">Estimasi Mulai</label>
-                            <input type="date" name="estimasi_mulai" class="form-control" value="{{ $ppsmb->estimasi_mulai?->format('Y-m-d') }}">
+                            <input type="date" name="estimasi_mulai" 
+                                class="form-control @error('estimasi_mulai') is-invalid @enderror" 
+                                value="{{ old('estimasi_mulai', $ppsmb->estimasi_mulai?->format('Y-m-d')) }}">
+                            @error('estimasi_mulai')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" style="font-size:13px;">Estimasi Selesai</label>
-                            <input type="date" name="estimasi_selesai" class="form-control" value="{{ $ppsmb->estimasi_selesai?->format('Y-m-d') }}">
+                            <input type="date" name="estimasi_selesai" 
+                                class="form-control @error('estimasi_selesai') is-invalid @enderror" 
+                                value="{{ old('estimasi_selesai', $ppsmb->estimasi_selesai?->format('Y-m-d')) }}">
+                            @error('estimasi_selesai')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                     <button type="submit" class="btn btn-sm btn-outline-secondary">

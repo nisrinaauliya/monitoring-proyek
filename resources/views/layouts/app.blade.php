@@ -38,7 +38,7 @@
                     <span class="sidebar-text ms-3" style="transition: opacity 0.3s ease, max-width 0.4s ease; opacity: 1; max-width: 200px; overflow: hidden; white-space: nowrap; display: inline-block;">PPSMB by User</span>
                 </a>
 
-               @if(Auth::user()->role === 'admin' || Auth::user()->department->code === 'CMD')
+               @if(Auth::user()->role === 'admin' || (Auth::user()->role === 'verifikator' && Auth::user()->department->code === 'CMD'))
                 <a href="{{ route('ppsmbbycmd') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-file-earmark-check fs-6"></i>
@@ -46,7 +46,7 @@
                 </a>
                 @endif
 
-                @if(Auth::user()->role === 'admin' || Auth::user()->department->code === 'DIN')
+                @if(Auth::user()->role === 'admin' || (Auth::user()->role === 'verifikator' && Auth::user()->department->code === 'DIN'))
                 <a href="{{ route('ppsmbbydinov') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-file-earmark-check fs-6"></i>
@@ -62,7 +62,7 @@
                 </a>
                 @endif
 
-                @if(Auth::user()->role === 'admin' || in_array(Auth::user()->department->code, ['CMD', 'DIN', 'IT']))
+                @if(Auth::user()->role === 'admin' || Auth::user()->department->code === 'IT' || (Auth::user()->role === 'verifikator' && in_array(Auth::user()->department->code, ['CMD', 'DIN'])))
                 <a href="{{ route('report') }}" 
                     class="nav-link text-dark py-2 rounded d-flex align-items-center sidebar-menu">
                     <i class="bi bi-card-heading fs-6"></i>

@@ -156,7 +156,15 @@
     const statusColors = @json(config('status.colors'));
     const depts        = @json($depts);
     const statusList   = @json($statusList);
-    const baseUrl      = '{{ url("/ppsmbbycmd") }}';
+    const baseUrl      = '{{ $baseUrl }}';
+    const deptModels   = @json($deptModels);
+    function getUrl(p) {
+        const menungguStatuses = ['Verifikasi CMD/Dinov', 'Edit by User - Verifikasi CMD/Dinov'];
+        if (menungguStatuses.includes(p.status) && deptModels.includes(p.model_aplikasi)) {
+            return baseUrl;
+        }
+        return '{{ url("/ppsmbbyuser") }}';
+    }
 
     const modelMap = @json(array_filter($modelMap)); // null values dibuang
 
@@ -198,7 +206,7 @@
         const counts = {
             menunggu:   filtered.filter(p => menungguStatuses.includes(p.status)).length,
             revisi:     filtered.filter(p => p.status === 'Revisi User').length,
-            uatAging:   filtered.filter(p => p.status === 'UAT').length,
+            uatAging:   filtered.filter(p => p.status === 'UAT' && p.aging_hari > 10).length,
             totalAktif: filtered.filter(p => !['Done (Live)', 'Rejected'].includes(p.status)).length,
         };
 
@@ -253,7 +261,7 @@
         const listMap = {
             menunggu:   filtered.filter(p => menungguStatuses.includes(p.status)),
             revisi:     filtered.filter(p => p.status === 'Revisi User'),
-            uatAging:   filtered.filter(p => p.status === 'UAT'),
+            uatAging:   filtered.filter(p => p.status === 'UAT' && p.aging_hari > 10),
             totalAktif: filtered.filter(p => !['Done (Live)', 'Rejected'].includes(p.status)),
         };
 
@@ -287,7 +295,7 @@
 
         container.innerHTML = list.map(p => {
             const color        = statusColors[p.status] || '#6c757d';
-            const hariMenunggu = Math.floor((Date.now() - new Date(p.created_at)) / 86400000);
+            const hariMenunggu = p.aging_hari ?? 0;
             return `
                 <div class="d-flex align-items-start justify-content-between mb-3 pb-3 border-bottom">
                     <div style="min-width:0;">
@@ -304,7 +312,7 @@
                         <div class="fw-bold ${hariMenunggu > 7 ? 'text-danger' : 'text-muted'}"
                              style="font-size:18px;">${hariMenunggu}</div>
                         <div class="text-muted" style="font-size:14px;">hari</div>
-                        <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">
+                        <a href="${getUrl(p)}/${p.id}" class="btn btn-sm btn-info mt-1" style="font-size:14px;">
                             Rincian
                         </a>
                     </div>
@@ -369,7 +377,7 @@
                     <div style="font-size:16px; font-weight:500;">${p.nama_project}</div>
                     <div style="font-size:14px; color:#888;">${p.no_ppsmb} · ${p.user}</div>
                 </div>
-                <a href="${baseUrl}/${p.id}" class="btn btn-sm btn-info" style="font-size:14px;">
+                <a href="${getUrl(p)}/${p.id}" class="btn btn-sm btn-info" style="font-size:14px;">
                     Rincian
                 </a>
             </div>

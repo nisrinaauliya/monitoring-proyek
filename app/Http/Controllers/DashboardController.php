@@ -47,6 +47,10 @@ class DashboardController extends Controller
 
         $autoRejected    = $this->getAutoRejected($user->dept_id);
         $revisiCountdown = $this->buildRevisiCountdown($ppsmbs);
+        $revisiCountdown      = $this->buildRevisiCountdown($ppsmbs->where('user_id', $user->id));
+        $revisiCountdownOther = $this->buildRevisiCountdown(
+            $ppsmbs->where('status', 'Revisi User')->where('user_id', '!=', $user->id)
+        );
 
         $summaryCards = [
             ['label' => 'Total Project',  'val' => $total,      'color' => '#686464', 'filter' => 'all',         'sub' => 'Semua project departemen'],
@@ -58,7 +62,7 @@ class DashboardController extends Controller
         return view('dashboard.user', compact(
             'ppsmbs', 'total', 'totalAktif', 'revisi', 'uat',
             'uatAging', 'showWarning', 'blockingProject',
-            'autoRejected', 'revisiCountdown', 'summaryCards',
+            'autoRejected', 'revisiCountdown', 'revisiCountdownOther', 'summaryCards',
         ));
     }
 
@@ -193,6 +197,7 @@ class DashboardController extends Controller
             'status'         => $p->status,
             'model_aplikasi' => $p->model_aplikasi,
             'created_at'     => $p->created_at,
+            'aging_hari'     => $p->aging_hari,
         ])->values();
 
         $antrianData = $antrian->map(fn($p) => [
@@ -242,11 +247,23 @@ class DashboardController extends Controller
             ['label' => 'Project Aktif',       'key' => 'totalAktif', 'color' => '#0d6efd',                                  'sub' => 'Semua project aktif'],
         ];
 
+        $deptModels = match($user->department->code) {
+            'CMD' => ['Aplikasi Internal MD', 'Improvement IT System'],
+            'DIN' => ['Aplikasi DMS, FLP, Wanda CE (Booking) & Wanda Chatbot'],
+            default => [],
+        };
+
+        $baseUrl = match($user->department->code) {
+            'CMD' => url('/ppsmbbycmd'),
+            'DIN' => url('/ppsmbbydinov'),
+            default => url('/ppsmbbyuser'),
+        };
+
         return view('dashboard.verifikator', compact(
             'allProjectsData', 'antrianData',
             'menungguVerifikasi', 'revisi', 'uatAging', 'totalAktif',
             'matrix', 'statusList', 'depts',
-            'chartData', 'modelMap', 'summaryDefs',
+            'chartData', 'modelMap', 'summaryDefs', 'baseUrl', 'deptModels',
         ));
     }
 

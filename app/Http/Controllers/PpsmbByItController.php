@@ -196,6 +196,8 @@ class PpsmbByItController extends Controller
         $request->validate([
             'estimasi_mulai'    =>'nullable|date',
             'estimasi_selesai'  => 'nullable|date|after_or_equal:estimasi_mulai'
+        ], [
+            'estimasi_selesai.after_or_equal' => 'Estimasi selesai tidak boleh lebih awal dari estimasi mulai.',
         ]);
 
         $ppsmb = Ppsmb::findOrFail($id);
@@ -309,6 +311,6 @@ class PpsmbByItController extends Controller
             ]);
         }
 
-        return redirect()->route('ppsmbbyit.show', $ppsmb->id)->with('success', 'Status UAT berhasil diupdate.');
+        return redirect()->route('ppsmbbyit.show', $ppsmb->id)->with('success', 'Status berhasil diupdate.');
     }
 }
