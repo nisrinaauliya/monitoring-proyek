@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Mail;
 
 class PpsmbReminderReject extends Command
 {
-    protected $signature = 'app:ppsmb-reminder-reject';
+    // protected $signature = 'app:ppsmb-reminder-reject';
+    protected $signature = 'app:ppsmb-reminder-reject {--hari=}';
     protected $description = 'Kirim reminder revisi PPSMB dan auto reject jika melebihi 30 hari';
 
     public function handle()
@@ -23,8 +24,12 @@ class PpsmbReminderReject extends Command
             ->get();
 
         foreach ($ppsmbs as $ppsmb) {
-            $hariKe = (int) Carbon::parse($ppsmb->revisi_at)->diffInDays(now());
+            // $hariKe = (int) Carbon::parse($ppsmb->revisi_at)->diffInDays(now());
 
+            $hariKe = $this->option('hari')
+                        ? (int) $this->option('hari')
+                        : (int) Carbon::parse($ppsmb->revisi_at)->diffInDays(now());
+                        
             // auto reject di hari ke-30
             if ($hariKe >= 30) {
                 $ppsmb->update(['status' => 'Rejected']);

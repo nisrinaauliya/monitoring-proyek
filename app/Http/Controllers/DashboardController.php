@@ -40,9 +40,9 @@ class DashboardController extends Controller
         $uatAging     = $this->buildUatAging($ppsmbs->where('status', 'UAT'));
         $agingWarning = collect($uatAging)->contains(fn($ua) => $ua['hari'] >= 10);
 
-        $showWarning     = $totalAktif >= 3 && $agingWarning;
+        $showWarning     = count($uatAging) >= 3 && $agingWarning;
         $blockingProject = $showWarning
-            ? collect($uatAging)->firstWhere(fn($ua) => $ua['hari'] >= 10)['ppsmb']->nama_project
+            ? collect($uatAging)->first(fn($ua) => $ua['hari'] >= 10)['ppsmb']->nama_project
             : null;
 
         $autoRejected           = $this->getAutoRejected($user->dept_id);
