@@ -45,12 +45,12 @@ class DashboardController extends Controller
             ? collect($uatAging)->firstWhere(fn($ua) => $ua['hari'] >= 10)['ppsmb']->nama_project
             : null;
 
-        $autoRejected    = $this->getAutoRejected($user->dept_id);
-        $revisiCountdown = $this->buildRevisiCountdown($ppsmbs);
-        $revisiCountdown      = $this->buildRevisiCountdown($ppsmbs->where('user_id', $user->id));
-        $revisiCountdownOther = $this->buildRevisiCountdown(
-            $ppsmbs->where('status', 'Revisi User')->where('user_id', '!=', $user->id)
-        );
+        $autoRejected           = $this->getAutoRejected($user->dept_id);
+        $revisiCountdown        = $this->buildRevisiCountdown($ppsmbs);
+        $revisiCountdown        = $this->buildRevisiCountdown($ppsmbs->where('user_id', $user->id));
+        $revisiCountdownOther   = $this->buildRevisiCountdown(
+                                    $ppsmbs->where('status', 'Revisi User')->where('user_id', '!=', $user->id)
+                                );
 
         $summaryCards = [
             ['label' => 'Total Project',  'val' => $total,      'color' => '#686464', 'filter' => 'all',         'sub' => 'Semua project departemen'],

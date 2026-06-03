@@ -28,17 +28,6 @@
                     @endfor
                 </select>
             </div>
-            <div>
-                <label class="form-label text-muted mb-1" style="font-size:16px;">Dept (Detail)</label>
-                <select name="dept" class="form-select form-select-sm" style="width:150px;font-size:16px;">
-                    <option value="">-- Semua --</option>
-                    @foreach($departments as $dept)
-                    <option value="{{ $dept->code }}" {{ $dept->code === $selectedDeptCode ? 'selected' : '' }}>
-                        {{ $dept->code }}
-                    </option>
-                    @endforeach
-                </select>
-            </div>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-sm text-white" style="background-color:#af2027;font-size:16px;">
                     <i class="bi bi-filter me-1"></i>Filter
@@ -84,8 +73,13 @@
                 </thead>
                 <tbody>
                     @foreach($matrix as $matrixDeptCode => $row)
-                    <tr>
-                        <td class="fw-semibold px-3">{{ $matrixDeptCode }}</td>
+                    <tr class="{{ $matrixDeptCode === $selectedDeptCode ? 'table-active' : '' }}">
+                        <td class="fw-semibold px-3">
+                            <a href="{{ route('report', ['tahun' => $tahun, 'bulan' => $bulan, 'dept' => $matrixDeptCode]) }}"
+                            class="text-decoration-none" style="color: #000000">
+                                {{ $matrixDeptCode }}
+                            </a>
+                        </td>                        
                         <td class="text-center fw-bold">{{ $row['pengajuan'] }}</td>
                         @foreach($statusList as $status)
                         <td class="text-center">
@@ -115,15 +109,24 @@
 @if($selectedDept && $detailDept)
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white border-0 px-3 pt-3 pb-2 d-flex justify-content-between align-items-start flex-wrap gap-2">
-        <div>
-            <div class="fw-semibold" style="font-size:16px;">
-                PPSMB – {{ $selectedDept->code }}
-                <span class="text-muted fw-normal" style="font-size:14px;">
-                    ({{ $detailDept->total() }} project)
-                </span>
+        <div class="d-flex align-items-start gap-2">
+            <div>
+                <div class="fw-semibold" style="font-size:16px;">
+                    PPSMB – {{ $selectedDept->code }}
+                    <span class="text-muted fw-normal" style="font-size:14px;">
+                        ({{ $detailDept->total() }} project)
+                    </span>
+                </div>
+                <div class="text-muted" style="font-size:14px;">Progress {{ $bulanIniLabel }}
+                </div>
             </div>
-            <div class="text-muted" style="font-size:14px;">Progress {{ $bulanIniLabel }}</div>
+            {{-- Tombol close --}}
+            <a href="{{ route('report', ['tahun' => $tahun, 'bulan' => $bulan]) }}"
+            class="btn btn-sm btn-outline-secondary ms-2">
+                <i class="bi bi-x-lg"></i>
+            </a>
         </div>
+
 
         {{-- Filter status + sort --}}
         <form method="GET" action="{{ route('report') }}" class="d-flex gap-2 flex-wrap align-items-end">
